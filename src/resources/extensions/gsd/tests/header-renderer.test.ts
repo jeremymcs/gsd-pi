@@ -20,7 +20,7 @@ test("renderHeaderLines uses the command-center splash layout", () => {
     {
       model: "claude-sonnet-4-6",
       provider: "anthropic",
-      directory: "~/Github/gsd-2",
+      directory: "~/projects/gsd-pi",
       branch: "feat/tui-refresh",
       mcpServers: ["context7"],
     },
