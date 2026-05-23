@@ -157,7 +157,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Fetch diff base for lint scans
         env:
@@ -165,10 +165,10 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           if [ -n "${PR_BASE_SHA:-}" ]; then
-            git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
+            git cat-file -e "$PR_BASE_SHA^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$PR_BASE_SHA"
             git update-ref "refs/remotes/origin/${BASE_REF:-main}" "$PR_BASE_SHA"
           else
-            git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+            git show-ref --verify --quiet refs/remotes/origin/main || git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
           fi
 
       - name: Scan for hardcoded secrets
