@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * GSD-2 — Lint for three recurring CodeRabbit defect classes.
+ * gsd-pi — Lint for three recurring CodeRabbit defect classes.
  * See issue #4931 for the motivation.
  *
  * Checks:

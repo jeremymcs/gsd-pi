@@ -22,7 +22,7 @@ npm install -g @opengsd/gsd-pi@latest
 
 Source: [`open-gsd/gsd-pi`](https://github.com/open-gsd/gsd-pi).
 
-Upgrading or migrating from an older install? See [Upgrade GSD Pi](./docs/user-docs/getting-started.md#upgrade-gsd-pi) and, if needed, [Upgrade from older GSD-2 installs](./docs/user-docs/troubleshooting.md#upgrade-from-older-gsd-2-installs).
+Upgrading or migrating from an older install? See [Upgrade GSD Pi](./docs/user-docs/getting-started.md#upgrade-gsd-pi) and, if needed, [Upgrade from older gsd-pi installs](./docs/user-docs/troubleshooting.md#upgrade-from-older-gsd-pi-installs).
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ gsd
 
 Run the setup flow, choose your preferred model provider, and open a project directory. GSD stores project planning and runtime state in `.gsd/`.
 
-For a full first-run walkthrough, see [Getting Started With GSD2](./docs/user-docs/getting-started.md).
+For a full first-run walkthrough, see [Getting Started With gsd-pi](./docs/user-docs/getting-started.md).
 
 ## Common Session Commands
 

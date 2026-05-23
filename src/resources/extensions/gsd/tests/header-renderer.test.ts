@@ -1,4 +1,4 @@
-// Project/App: GSD-2
+// Project/App: gsd-pi
 // File Purpose: Visual contract tests for the GSD watch header renderer.
 
 import test from "node:test";
