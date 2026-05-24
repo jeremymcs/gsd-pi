@@ -39,62 +39,62 @@ jobs:
       - name: Post changelog to Discord
         shell: bash
         run: |
-          cat > discord-changelog.mjs <<'NODE'
-          import { readFile } from "node:fs/promises";
+          set -euo pipefail
 
-          let eventName = process.env.GITHUB_EVENT_NAME;
-          const eventPath = process.env.GITHUB_EVENT_PATH;
-          const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-          const githubToken = process.env.GH_TOKEN;
-          const repoSlug = process.env.GITHUB_REPOSITORY;
-          const releaseTag = process.env.RELEASE_TAG;
+          if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+            echo "Missing DISCORD_CHANGELOG_WEBHOOK secret."
+            exit 1
+          fi
 
-          if (!webhookUrl) {
-            throw new Error("Missing DISCORD_CHANGELOG_WEBHOOK secret.");
+          EVENT_NAME="${GITHUB_EVENT_NAME}"
+          EVENT_FILE="${GITHUB_EVENT_PATH}"
+          REPO_FULL="$(jq -r '.repository.full_name // env.GITHUB_REPOSITORY' "$EVENT_FILE")"
+          REPO_URL="$(jq -r '.repository.html_url // ("https://github.com/" + env.GITHUB_REPOSITORY)' "$EVENT_FILE")"
+          ACTOR="$(jq -r '.sender.login // .pusher.name // env.GITHUB_ACTOR // "GitHub"' "$EVENT_FILE")"
+          FIELDS="[]"
+          COLOR="10070709"
+          URL="$REPO_URL"
+
+          link() {
+            local label="$1"
+            local url="$2"
+
+            if [ -n "$url" ] && [ "$url" != "null" ]; then
+              printf '[%s](%s)' "$label" "$url"
+            else
+              printf '%s' "$label"
+            fi
           }
 
-          let event = JSON.parse(await readFile(eventPath, "utf8"));
-
-          if (eventName === "workflow_dispatch") {
-            event = await fetchReleaseEvent({ githubToken, repoSlug, releaseTag });
-            eventName = "release";
+          trim_ref() {
+            printf '%s' "$1" | sed -E 's#^refs/heads/##; s#^refs/tags/##'
           }
 
-          const payload = buildPayload(eventName, event);
-
-          const response = await fetch(webhookUrl, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Discord webhook failed with ${response.status}: ${await response.text()}`);
+          format_release_notes() {
+            printf '%s' "$1" |
+              sed -E 's/\r$//' |
+              sed -E 's/^#{1,6}[[:space:]]+(.+)$/\*\*\1\*\*/' |
+              awk 'BEGIN{blank=0} NF{blank=0; print; next} blank==0{print; blank=1}' |
+              head -c 3900
           }
 
-          function buildPayload(eventName, event) {
-            return {
-              username: "Repo Changelog",
-              content: buildContent(eventName, event),
-              embeds: [
-                {
-                  ...buildEmbed(eventName, event),
-                  footer: { text: `GitHub ${eventName} event` },
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
-          }
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ -n "${RELEASE_TAG:-}" ]; then
+              RELEASE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")"
+            else
+              RELEASE_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest")"
+            fi
 
-          async function fetchReleaseEvent({ githubToken, repoSlug, releaseTag }) {
-            if (!githubToken) {
-              throw new Error("Missing GitHub token.");
-            }
-
-            if (!repoSlug) {
-              throw new Error("Missing GITHUB_REPOSITORY.");
-            }
-
-            const releasePath = releaseTag
-              ? `/repos/${repoSlug}/releases/tags/${encodeURIComponent(releaseTag)}`
-              : `/repos/${repoSlug}/releases/latest`;
+            EVENT_NAME="release"
+            ACTION="published"
+            TAG="$(jq -r '.tag_name // "release"' <<<"$RELEASE_JSON")"
+            RELEASE_NAME="$(jq -r '.name // .tag_name // "release"' <<<"$RELEASE_JSON")"
+            RELEASE_URL="$(jq -r '.html_url // empty' <<<"$RELEASE_JSON")"
+            RELEASE_AUTHOR="$(jq -r '.author.login // env.GITHUB_ACTOR // "unknown"' <<<"$RELEASE_JSON")"
+            RELEASE_BODY="$(jq -r '.body // ""' <<<"$RELEASE_JSON")"
+          elif [ "$EVENT_NAME" = "release" ]; then
+            RELEASE_JSON="$(jq -c '.release' "$EVENT_FILE")"
+            ACTION="$(jq -r '.action // "published"' "$EVENT_FILE")"
+            TAG="$(jq -r '.tag_name // "release"' <<<"$RELEASE_JSON")"
+            RELEASE_NAME="$(jq -r '.name // .tag_name // "release"' <<<"$RELEASE_JSON")"
+            RELEASE_URL="$(jq -r '.html_url // empty' <<<"$RELEASE_JSON")"
