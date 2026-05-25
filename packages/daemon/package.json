@@ -27,7 +27,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/daemon.test.js dist/cloud-config.test.js dist/local-tool-executor.test.js"
+    "test": "node --test dist/daemon.test.js dist/cloud-config.test.js dist/local-tool-executor.test.js dist/mcp-cli.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
