@@ -279,7 +279,9 @@ export async function selectAndApplyModel(
           unitType,
           taskMetadata: taskMetadataForPolicy,
           currentProvider: ctx.model?.provider,
-          allowCrossProvider: routingConfig.cross_provider !== false,
+          allowCrossProvider: modelConfig.source === "explicit"
+            ? true
+            : routingConfig.cross_provider !== false,
           requiredTools,
         },
       );
