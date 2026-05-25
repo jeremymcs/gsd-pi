@@ -409,12 +409,11 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "node --experimental-strip-types --test \"test/*.test.ts\"",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "package": "npm exec --package @vscode/vsce -- vsce package",
+    "publish": "npm exec --package @vscode/vsce -- vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.95.0",
-    "@vscode/vsce": "^3.7.1",
     "typescript": "^5.7.0"
   },
   "dependencies": {

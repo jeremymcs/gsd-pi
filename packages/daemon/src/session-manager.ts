@@ -237,6 +237,12 @@ export class SessionManager extends EventEmitter {
     this.logger.info('session cancelled', { sessionId, projectDir: session.projectDir });
   }
 
+  async cancelSessionByDir(projectDir: string): Promise<void> {
+    const session = this.getSessionByDir(projectDir);
+    if (!session) throw new Error(`Session not found for projectDir: ${projectDir}`);
+    await this.cancelSession(session.sessionId);
+  }
+
   /**
    * Build a HeadlessJsonResult-shaped object from accumulated session state.
    */
