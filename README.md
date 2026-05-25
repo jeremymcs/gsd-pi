@@ -64,6 +64,8 @@ You can also run `npx @opengsd/gsd-pi@latest` to launch the installer from the n
 
 ## Quick Start
 
+Need help choosing settings? Use the [GSD Pi web configurator](https://pi.opengsd.net/) to build a configuration in your browser.
+
 ```bash
 gsd
 ```
