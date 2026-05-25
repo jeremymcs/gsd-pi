@@ -1,12 +1,12 @@
 {
-  "name": "@opengsd/daemon",
+  "name": "@opengsd/cloud-mcp-gateway",
   "version": "1.0.2",
-  "description": "GSD daemon — background process for project monitoring and Discord integration",
+  "description": "Cloud MCP gateway for brokering remote MCP clients to local GSD runtimes",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-gsd/gsd-pi.git",
-    "directory": "packages/daemon"
+    "directory": "packages/cloud-mcp-gateway"
   },
   "publishConfig": {
     "access": "public"
@@ -21,21 +21,17 @@
     }
   },
   "bin": {
-    "gsd-daemon": "./dist/cli.js"
+    "gsd-cloud-mcp-gateway": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/daemon.test.js dist/cloud-config.test.js"
+    "test": "npm run build && node --test dist/*.test.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.52.0",
-    "@opengsd/contracts": "^1.0.2",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@opengsd/mcp-server": "^1.0.2",
-    "@opengsd/rpc-client": "^1.0.2",
-    "discord.js": "^14.25.1",
     "ws": "^8.20.0",
-    "yaml": "^2.8.0",
-    "zod": "^3.24.0"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.0",

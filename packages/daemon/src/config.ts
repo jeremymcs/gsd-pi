@@ -17,6 +17,7 @@ function expandTilde(p: string): string {
 /** Default config values when no file is present or fields are missing. */
 function defaults(): DaemonConfig {
   return {
+    cloud: undefined,
     discord: undefined,
     projects: { scan_roots: [] },
     log: {
@@ -47,6 +48,19 @@ export function validateConfig(raw: unknown): DaemonConfig {
 
   if (raw == null || typeof raw !== 'object') return def;
   const obj = raw as Record<string, unknown>;
+
+  // --- discord ---
+  let cloud: DaemonConfig['cloud'] = undefined;
+  if (obj['cloud'] != null && typeof obj['cloud'] === 'object') {
+    const c = obj['cloud'] as Record<string, unknown>;
+    cloud = {
+      gateway_url: typeof c['gateway_url'] === 'string' ? c['gateway_url'] : '',
+      ...(typeof c['device_token'] === 'string' ? { device_token: c['device_token'] } : {}),
+      ...(typeof c['runtime_id'] === 'string' ? { runtime_id: c['runtime_id'] } : {}),
+      ...(typeof c['runtime_name'] === 'string' ? { runtime_name: c['runtime_name'] } : {}),
+      ...(typeof c['enabled'] === 'boolean' ? { enabled: c['enabled'] } : {}),
+    };
+  }
 
   // --- discord ---
   let discord: DaemonConfig['discord'] = undefined;
@@ -108,6 +122,7 @@ export function validateConfig(raw: unknown): DaemonConfig {
   }
 
   return {
+    cloud,
     discord,
     projects: { scan_roots: scanRoots },
     log: { file: logFile, level: logLevel, max_size_mb: maxSizeMb },
