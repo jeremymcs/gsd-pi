@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -17,6 +17,7 @@ test("cloud config stores device token but redacts status output", () => {
   });
 
   assert.match(readFileSync(configPath, "utf8"), /secret-device-token/);
+  assert.equal(statSync(configPath).mode & 0o777, 0o600);
   assert.deepEqual(redactedCloudStatus(config), {
     configured: true,
     enabled: true,
@@ -38,6 +39,10 @@ test("cloud gateway URL validation rejects unsafe destinations", () => {
   assert.throws(() => parseCloudGatewayUrl("http://gateway.example"), /Plain HTTP/);
   assert.throws(() => parseCloudGatewayUrl("https://user:pass@gateway.example"), /must not include credentials/);
   assert.throws(() => parseCloudGatewayUrl("https://gateway.example/#token"), /must not include a fragment/);
+  assert.throws(() => parseCloudGatewayUrl("https://127.0.0.1:8787"), /must not target private/);
+  assert.throws(() => parseCloudGatewayUrl("https://10.0.0.5"), /must not target private/);
+  assert.throws(() => parseCloudGatewayUrl("https://192.168.1.10"), /must not target private/);
+  assert.throws(() => parseCloudGatewayUrl("https://[::1]:8787"), /must not target private/);
 });
 
 test("pairing exchange rejects unsafe gateway URLs before making requests", async () => {
@@ -49,8 +54,8 @@ test("pairing exchange rejects unsafe gateway URLs before making requests", asyn
   }) as typeof fetch;
   try {
     await assert.rejects(
-      exchangePairingCode({ gatewayUrl: "file:///tmp/socket", code: "ABCD1234" }),
-      /must use http or https/,
+      exchangePairingCode({ gatewayUrl: "https://127.0.0.1:8787", code: "ABCD1234" }),
+      /must not target private/,
     );
     assert.equal(called, false);
   } finally {
