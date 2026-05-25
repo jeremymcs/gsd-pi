@@ -37,6 +37,7 @@ describe("getThemeExportColors", () => {
 
 	it("resolves export variable references using the same syntax as colors", () => {
 		const darkTheme = JSON.parse(
+			// allow-source-grep: dark.json is fixture data for custom theme merge tests.
 			readFileSync(new URL("../src/modes/interactive/theme/dark.json", import.meta.url), "utf-8"),
 		) as ThemeFile;
 
@@ -71,6 +72,7 @@ describe("getThemeExportColors", () => {
 
 	it("resolves recursive vars and converts 256-color export values to hex", () => {
 		const darkTheme = JSON.parse(
+			// allow-source-grep: dark.json is fixture data for custom theme merge tests.
 			readFileSync(new URL("../src/modes/interactive/theme/dark.json", import.meta.url), "utf-8"),
 		) as ThemeFile;
 

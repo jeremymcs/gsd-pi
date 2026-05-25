@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
 describe("export HTML markdown link sanitization", () => {
+	// allow-source-grep: template.js is a browser asset validated as emitted source.
 	const templateJs = readFileSync(new URL("../src/core/export-html/template.js", import.meta.url), "utf-8");
 
 	it("overrides the marked link renderer to block javascript: protocol", () => {
