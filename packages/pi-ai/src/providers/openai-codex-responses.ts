@@ -367,7 +367,16 @@ function buildRequestBody(
 	context: Context,
 	options?: OpenAICodexResponsesOptions,
 ): RequestBody {
-	const messages = convertResponsesMessages(model, context, CODEX_TOOL_CALL_PROVIDERS, {
+	const modelCapabilities = model as Model<"openai-codex-responses"> & {
+		input?: string[];
+		output?: string[];
+	};
+	const normalizedModel = {
+		...model,
+		input: modelCapabilities.input ?? [],
+		output: modelCapabilities.output ?? ["text"],
+	} as Model<"openai-codex-responses">;
+	const messages = convertResponsesMessages(normalizedModel, context, CODEX_TOOL_CALL_PROVIDERS, {
 		includeSystemPrompt: false,
 	});
 
@@ -518,9 +527,15 @@ async function* mapCodexEvents(events: AsyncIterable<Record<string, unknown>>): 
 		if (!type) continue;
 
 		if (type === "error") {
-			const code = (event as { code?: string }).code || "";
-			const message = (event as { message?: string }).message || "";
-			throw new CodexApiError(`Codex error: ${message || code || JSON.stringify(event)}`, {
+			const topLevelCode = (event as { code?: string }).code || "";
+			const topLevelMessage = (event as { message?: string }).message || "";
+			const nestedError = (event as {
+				error?: { type?: string; code?: string; message?: string };
+			}).error;
+			const code = nestedError?.code || nestedError?.type || topLevelCode || "";
+			const message = nestedError?.message || topLevelMessage || "";
+			const prefix = code ? `Codex ${code}` : "Codex error";
+			throw new CodexApiError(`${prefix}: ${message || JSON.stringify(event)}`, {
 				code: code || undefined,
 				payload: event,
 			});

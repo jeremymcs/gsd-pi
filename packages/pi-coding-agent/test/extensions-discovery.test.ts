@@ -213,6 +213,24 @@ describe("extensions discovery", () => {
 		expect(result.extensions[0].path).toContain("index.ts");
 	});
 
+	it("treats pi:{} packages as libraries instead of loading index.js", async () => {
+		const subdir = path.join(extensionsDir, "cmux");
+		fs.mkdirSync(subdir);
+		fs.writeFileSync(path.join(subdir, "index.js"), "export const helper = () => {};");
+		fs.writeFileSync(
+			path.join(subdir, "package.json"),
+			JSON.stringify({
+				name: "@gsd/cmux",
+				pi: {},
+			}),
+		);
+
+		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
+
+		expect(result.errors).toHaveLength(0);
+		expect(result.extensions).toHaveLength(0);
+	});
+
 	it("ignores subdirectory without index or package.json", async () => {
 		const subdir = path.join(extensionsDir, "not-an-extension");
 		fs.mkdirSync(subdir);

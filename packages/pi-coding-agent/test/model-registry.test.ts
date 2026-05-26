@@ -213,6 +213,29 @@ describe("ModelRegistry", () => {
 		});
 	});
 
+	describe("auth gating", () => {
+		test("providers with authMode none are treated as configured without API keys", () => {
+			const registry = ModelRegistry.create(authStorage, modelsJsonPath);
+			registry.registerProvider("gsd-fake", {
+				authMode: "none",
+				models: [{
+					id: "gsd-fake-model",
+					name: "GSD Fake",
+					api: "fake" as Api,
+					reasoning: false,
+					input: ["text"],
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+					contextWindow: 1_000,
+					maxTokens: 256,
+				}],
+			});
+
+			const model = registry.find("gsd-fake", "gsd-fake-model");
+			expect(model).toBeDefined();
+			expect(registry.hasConfiguredAuth(model!)).toBe(true);
+		});
+	});
+
 	describe("custom models merge behavior", () => {
 		test("built-in provider custom models inherit api and baseUrl without explicit fields", () => {
 			// Built-in providers already have api/baseUrl on every model, and auth

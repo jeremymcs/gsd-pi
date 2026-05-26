@@ -528,7 +528,10 @@ function resolveExtensionEntries(dir: string): string[] | null {
 	const packageJsonPath = join(dir, "package.json");
 	if (existsSync(packageJsonPath)) {
 		const manifest = readPiManifestFile(packageJsonPath);
-		if (manifest?.extensions?.length) {
+		if (manifest) {
+			if (!manifest.extensions?.length) {
+				return [];
+			}
 			const entries: string[] = [];
 			for (const extPath of manifest.extensions) {
 				const resolvedExtPath = resolve(dir, extPath);

@@ -1,5 +1,6 @@
 import { MODELS } from "./models.generated.js";
 import { GOOGLE_ANTIGRAVITY_MODELS } from "./models/google-antigravity.generated.js";
+import { FAKE_MODEL, FAKE_MODEL_ID, FAKE_PROVIDER } from "./models/fake-model.js";
 import type { Api, KnownProvider, Model, ModelThinkingLevel, Usage } from "./types.js";
 
 type AllModels = typeof MODELS & { "google-antigravity": typeof GOOGLE_ANTIGRAVITY_MODELS };
@@ -22,6 +23,14 @@ for (const [provider, models] of Object.entries(MODELS)) {
 		providerModels.set(id, model as Model<Api>);
 	}
 	modelRegistry.set("google-antigravity", providerModels);
+}
+
+// E2E-test-only: expose the fake replay model when a transcript is configured.
+// The env var must be present before this module loads in the child process.
+if (process.env.GSD_FAKE_LLM_TRANSCRIPT) {
+	const providerModels = new Map<string, Model<Api>>();
+	providerModels.set(FAKE_MODEL_ID, FAKE_MODEL as Model<Api>);
+	modelRegistry.set(FAKE_PROVIDER, providerModels);
 }
 
 type ModelApi<

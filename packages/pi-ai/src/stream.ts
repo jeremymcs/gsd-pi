@@ -1,4 +1,4 @@
-import "./providers/register-builtins.ts";
+import "./providers/register-builtins.js";
 
 import { getApiProvider } from "./api-registry.js";
 import type {

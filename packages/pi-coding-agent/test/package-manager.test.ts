@@ -144,6 +144,22 @@ Content`,
 			expect(result.skills.some((r) => r.path === skillFile && r.enabled)).toBe(true);
 		});
 
+		it("should not auto-discover pi:{} extension libraries from agentDir", async () => {
+			const libDir = join(agentDir, "extensions", "cmux");
+			mkdirSync(libDir, { recursive: true });
+			writeFileSync(join(libDir, "index.js"), "export const helper = () => {};");
+			writeFileSync(
+				join(libDir, "package.json"),
+				JSON.stringify({
+					name: "@gsd/cmux",
+					pi: {},
+				}),
+			);
+
+			const result = await packageManager.resolve();
+			expect(result.extensions).toEqual([]);
+		});
+
 		it("should resolve project paths relative to .pi", async () => {
 			const extDir = join(tempDir, ".pi", "extensions");
 			mkdirSync(extDir, { recursive: true });

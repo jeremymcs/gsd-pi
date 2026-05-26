@@ -20,6 +20,7 @@ import type { MistralOptions } from "./mistral.js";
 import type { OpenAICodexResponsesOptions } from "./openai-codex-responses.js";
 import type { OpenAICompletionsOptions } from "./openai-completions.js";
 import type { OpenAIResponsesOptions } from "./openai-responses.js";
+import { createFakeProvider } from "./fake.js";
 
 interface LazyProviderModule<
 	TApi extends Api,
@@ -367,6 +368,10 @@ const streamBedrockLazy = createLazyStream(loadBedrockProviderModule);
 const streamSimpleBedrockLazy = createLazySimpleStream(loadBedrockProviderModule);
 
 export function registerBuiltInApiProviders(): void {
+	if (process.env.GSD_FAKE_LLM_TRANSCRIPT) {
+		registerApiProvider(createFakeProvider({ transcriptPath: process.env.GSD_FAKE_LLM_TRANSCRIPT }));
+	}
+
 	registerApiProvider({
 		api: "anthropic-messages",
 		stream: streamAnthropic,

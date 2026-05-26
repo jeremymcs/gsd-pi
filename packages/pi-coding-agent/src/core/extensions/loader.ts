@@ -542,8 +542,10 @@ function isExtensionFile(name: string): boolean {
  * Resolve extension entry points from a directory.
  *
  * Checks for:
- * 1. package.json with "pi.extensions" field -> returns declared paths
- * 2. index.ts or index.js -> returns the index file
+ * 1. package.json with a "pi" object is authoritative:
+ *    - "pi.extensions" entries -> returns declared paths
+ *    - missing/empty "pi.extensions" -> returns [] (library opt-out)
+ * 2. index.ts or index.js -> returns the index file only when no "pi" object exists
  *
  * Returns resolved paths or null if no entry points found.
  */
@@ -552,7 +554,10 @@ function resolveExtensionEntries(dir: string): string[] | null {
 	const packageJsonPath = path.join(dir, "package.json");
 	if (fs.existsSync(packageJsonPath)) {
 		const manifest = readPiManifest(packageJsonPath);
-		if (manifest?.extensions?.length) {
+		if (manifest) {
+			if (!manifest.extensions?.length) {
+				return [];
+			}
 			const entries: string[] = [];
 			for (const extPath of manifest.extensions) {
 				const resolvedExtPath = path.resolve(dir, extPath);
