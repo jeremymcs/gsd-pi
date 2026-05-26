@@ -139,8 +139,9 @@ type FlatSessionBrowserNode = {
 };
 
 type ParsedSessionSearchQuery = {
-  mode: "tokens";
+  mode: "tokens" | "regex";
   tokens: Array<{ kind: "fuzzy" | "phrase"; value: string }>;
+  regex: RegExp | null;
   error?: string;
 };
 
@@ -232,16 +233,21 @@ function hasSessionName(session: SessionInfo): boolean {
 function parseSessionSearchQuery(query: string): ParsedSessionSearchQuery {
   const trimmed = query.trim();
   if (!trimmed) {
-    return { mode: "tokens", tokens: [] };
+    return { mode: "tokens", tokens: [], regex: null };
   }
 
   if (trimmed.startsWith("re:")) {
     const pattern = trimmed.slice(3).trim();
     if (!pattern) {
-      return { mode: "tokens", tokens: [], error: "Empty search" };
+      return { mode: "regex", tokens: [], regex: null, error: "Empty regex" };
     }
 
-    return { mode: "tokens", tokens: [{ kind: "phrase", value: pattern }] };
+    try {
+      return { mode: "regex", tokens: [], regex: new RegExp(pattern, "i") };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { mode: "regex", tokens: [], regex: null, error: message };
+    }
   }
 
   const tokens: Array<{ kind: "fuzzy" | "phrase"; value: string }> = [];
@@ -291,15 +297,29 @@ function parseSessionSearchQuery(query: string): ParsedSessionSearchQuery {
         .map((value) => value.trim())
         .filter((value) => value.length > 0)
         .map((value) => ({ kind: "fuzzy" as const, value })),
+      regex: null,
     };
   }
 
   flush(inQuote ? "phrase" : "fuzzy");
-  return { mode: "tokens", tokens };
+  return { mode: "tokens", tokens, regex: null };
 }
 
 function matchSessionSearch(session: SessionInfo, parsed: ParsedSessionSearchQuery): { matches: boolean; score: number } {
   const text = getSessionSearchText(session);
+
+  if (parsed.mode === "regex") {
+    if (!parsed.regex) {
+      return { matches: false, score: 0 };
+    }
+
+    const index = text.search(parsed.regex);
+    if (index < 0) {
+      return { matches: false, score: 0 };
+    }
+
+    return { matches: true, score: index * 0.1 };
+  }
 
   if (parsed.tokens.length === 0) {
     return { matches: true, score: 0 };
