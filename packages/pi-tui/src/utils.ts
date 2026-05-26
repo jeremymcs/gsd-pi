@@ -138,11 +138,12 @@ function finalizeTruncatedResult(
 	const reset = "\x1b[0m";
 	const visibleWidth = prefixWidth + ellipsisWidth;
 	let result: string;
+	const needsReset = prefix.includes("\x1b") || ellipsis.includes("\x1b");
 
 	if (ellipsis.length > 0) {
-		result = `${prefix}${reset}${ellipsis}${reset}`;
+		result = needsReset ? `${prefix}${reset}${ellipsis}${reset}` : `${prefix}${ellipsis}`;
 	} else {
-		result = `${prefix}${reset}`;
+		result = needsReset ? `${prefix}${reset}` : prefix;
 	}
 
 	return pad ? result + " ".repeat(Math.max(0, maxWidth - visibleWidth)) : result;

@@ -282,12 +282,11 @@ export function createReadToolDefinition(
 								const allLines = textContent.split("\n");
 								const totalFileLines = allLines.length;
 								// Apply offset if specified. Convert from 1-indexed input to 0-indexed array access.
-								const startLine = offset ? Math.max(0, offset - 1) : 0;
+								const requestedStartLine = offset ? Math.max(0, offset - 1) : 0;
+								const startLine =
+									allLines.length > 0 ? Math.min(requestedStartLine, allLines.length - 1) : requestedStartLine;
 								const startLineDisplay = startLine + 1;
-								// Check if offset is out of bounds.
-								if (startLine >= allLines.length) {
-									throw new Error(`Offset ${offset} is beyond end of file (${allLines.length} lines total)`);
-								}
+								const offsetWasClamped = offset !== undefined && requestedStartLine !== startLine;
 								let selectedContent: string;
 								let userLimitedLines: number | undefined;
 								// If limit is specified by the user, honor it first. Otherwise truncateHead decides.
@@ -325,6 +324,9 @@ export function createReadToolDefinition(
 								} else {
 									// No truncation and no remaining user-limited content.
 									outputText = truncation.content;
+								}
+								if (offsetWasClamped) {
+									outputText += `\n\n[Requested offset ${offset} was beyond the end of the file (${totalFileLines} lines total), so it was clamped to line ${startLineDisplay}.]`;
 								}
 								content = [{ type: "text", text: outputText }];
 							}

@@ -104,15 +104,14 @@ describe("chunkMessages", () => {
 	});
 
 	it("splits messages into multiple chunks when they exceed budget", () => {
-		// Use branchSummary messages — they aren't capped by the serializer, so
-		// their post-serialization size matches their raw size. Each 50k-token
-		// summary must get its own chunk under an 80k budget.
+		// Branch summaries are now token-estimated from their serialized form,
+		// so use a realistic small budget that still forces multiple chunks.
 		const messages: AgentMessage[] = [
 			makeBranchSummaryMessage(50_000),
 			makeBranchSummaryMessage(50_000),
 			makeBranchSummaryMessage(50_000),
 		];
-		const chunks = chunkMessages(messages, 80_000);
+		const chunks = chunkMessages(messages, 800);
 		assert.ok(chunks.length > 1, `Expected multiple chunks, got ${chunks.length}`);
 		const totalMessages = chunks.reduce((sum, c) => sum + c.length, 0);
 		assert.equal(totalMessages, 3);
@@ -218,16 +217,15 @@ describe("calculateContextTokens", () => {
 
 describe("generateSummary — chunked fallback (#2932)", () => {
 	it("calls _completeFn multiple times when messages exceed model context window", async () => {
-		// Use branchSummary messages — not capped by the serializer — so the
-		// chunker's post-truncation view matches the raw view. 3 × 80k summaries
-		// totalling 240k tokens must exceed a 200k context window.
+		// Serialized summaries are compact now, so use a small synthetic window
+		// to force the chunked path through generateSummary().
 		const messages: AgentMessage[] = [
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(200_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 
 		// Verify our test setup: messages really do exceed the model window.
 		// Use estimateSerializedTokens because that's what generateSummary uses
@@ -321,8 +319,8 @@ describe("generateSummary — chunked fallback (#2932)", () => {
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(200_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 		const previousSummary =
 			"Previous session summary content — intentionally verbose enough to clear the degenerate-summary threshold so this test exercises the actual propagation path.";
 
@@ -431,14 +429,14 @@ describe("(#4665) degenerate summary guard", () => {
 	});
 
 	it("does not propagate a degenerate first-chunk summary forward (no 'preserve nothing' chain)", async () => {
-		// Force the chunked path with uncapped summary messages.
+		// Force the chunked path with a small synthetic context window.
 		const messages: AgentMessage[] = [
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(200_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 
 		// Responses: chunk 0 returns degenerate ("empty conversation"). Chunks
 		// 1 and 2 return real summaries. Pre-fix behavior: the chunk-0 output
@@ -494,8 +492,8 @@ describe("(#4665) degenerate summary guard", () => {
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(100_000); // small window forces chunking
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 
 		const responses = [
 			"", // first attempt: empty string → degenerate
@@ -542,8 +540,8 @@ describe("(#4665) degenerate summary guard", () => {
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(100_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 
 		const CHUNK0_SUMMARY = "## Done\n- Chunk 0 real summary with enough length to clear the degenerate threshold of 100 characters — easily.";
 		const CHUNK1_RETRY_SUMMARY = "## Done\n- Chunk 1 recovered on retry — its content must appear in the final summary or the R1 fix regressed for non-first chunks.";
@@ -591,8 +589,8 @@ describe("(#4665) degenerate summary guard", () => {
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(100_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 
 		// Every response is degenerate, both initial and retry attempts.
 		const mockComplete = mock.fn(async () => makeFakeResponse("empty conversation"));
@@ -618,8 +616,8 @@ describe("(#4665) degenerate summary guard", () => {
 			makeBranchSummaryMessage(80_000),
 			makeBranchSummaryMessage(80_000),
 		];
-		const model = makeModel(100_000);
-		const reserveTokens = 16_384;
+		const model = makeModel(1_000);
+		const reserveTokens = 200;
 		const previousSummary =
 			"Previously-computed summary from the last compaction — deliberately long enough to clear the degenerate-output threshold.";
 

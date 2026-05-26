@@ -3,7 +3,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -177,7 +177,7 @@ test("detectWorkflowMcpLaunchConfig resolves the bundled server from GSD_BIN_PAT
   assert.deepEqual(launch, {
     name: "gsd-workflow",
     command: process.execPath,
-    args: [cliPath],
+    args: [realpathSync(cliPath)],
     cwd: worktreeRoot,
     env: launch?.env,
   });
@@ -212,7 +212,7 @@ test("detectWorkflowMcpLaunchConfig resolves the bundled server from a symlinked
     assert.deepEqual(launch, {
       name: "gsd-workflow",
       command: process.execPath,
-      args: [cliPath],
+      args: [realpathSync(cliPath)],
       cwd: worktreeRoot,
       env: launch?.env,
     });

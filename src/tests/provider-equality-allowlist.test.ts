@@ -57,10 +57,6 @@ const PROVIDER_EQ_RE = new RegExp(
 // path plus a one-line justification. Update ADR-012's "When `provider`
 // comparison is still correct" section when adding to this list.
 const ALLOWED_FILES: Record<string, string> = {
-  // Fallback source is the plain `anthropic` transport (routes to claude-code).
-  "packages/pi-coding-agent/src/core/retry-handler.ts":
-    "transport-specific fallback source (ADR-012)",
-
   // Claude-Code-specific SDK hooks (OAuth prep, streaming buffer sizing).
   "packages/gsd-agent-core/src/sdk.ts":
     "claude-code-specific SDK behavior",
@@ -72,10 +68,10 @@ const ALLOWED_FILES: Record<string, string> = {
   // GitHub Copilot transport-specific request/auth transforms.
   "packages/pi-ai/src/utils/oauth/github-copilot.ts":
     "github-copilot OAuth-specific model shaping",
-  "packages/pi-ai/src/providers/openai-shared.ts":
-    "github-copilot-specific header injection",
   "packages/pi-ai/src/providers/anthropic.ts":
     "github-copilot-specific header injection on Anthropic transport",
+  "packages/pi-ai/src/providers/openai-responses.ts":
+    "github-copilot-specific header injection",
 
   // Transport-specific model-ID quirks (OpenRouter Anthropic IDs, OpenAI
   // custom-model-ID length cap, Copilot-specific headers).
