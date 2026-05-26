@@ -13,6 +13,7 @@ import {
   renderSliceSummary,
   renderTaskSummary,
 } from "../../markdown-renderer.js";
+import { getMilestone } from "../../gsd-db.js";
 import type { GSDState } from "../../types.js";
 import { logWarning } from "../../workflow-logger.js";
 import type { DriftContext, DriftHandler, DriftRecord } from "../types.js";
@@ -56,6 +57,29 @@ function isRepairableStaleRenderReason(reason: string): boolean {
   );
 }
 
+function resolveRoadmapMilestoneIdFromPath(normPath: string): string {
+  const milestoneMatch = normPath.match(/milestones\/([^/]+)\//);
+  if (!milestoneMatch) {
+    throw new Error(
+      `stale-render drift: roadmap path missing milestone segment: ${normPath}`,
+    );
+  }
+
+  const fileMatch = normPath.match(/(?:^|\/)([^/]+)-ROADMAP\.md$/i);
+  const candidates = [
+    fileMatch?.[1],
+    milestoneMatch[1],
+    fileMatch?.[1]?.match(/^(M\d+)/i)?.[1],
+    milestoneMatch[1].match(/^(M\d+)/i)?.[1],
+  ].filter((candidate): candidate is string => !!candidate);
+
+  for (const candidate of candidates) {
+    if (getMilestone(candidate)) return candidate;
+  }
+
+  return fileMatch?.[1] ?? milestoneMatch[1];
+}
+
 async function repairStaleRenderFromBasePath(
   record: StaleRenderDrift,
   basePath: string,
@@ -64,14 +88,10 @@ async function repairStaleRenderFromBasePath(
   const reason = record.reason;
 
   if (reason.includes("in roadmap")) {
-    const milestoneMatch = normPath.match(/milestones\/([^/]+)\//);
-    if (!milestoneMatch) {
-      throw new Error(
-        `stale-render drift: roadmap path missing milestone segment: ${record.renderPath}`,
-      );
-    }
-    const fileMatch = normPath.match(/(?:^|\/)([^/]+)-ROADMAP\.md$/);
-    await renderRoadmapFromDb(basePath, fileMatch?.[1] ?? milestoneMatch[1]);
+    await renderRoadmapFromDb(
+      basePath,
+      resolveRoadmapMilestoneIdFromPath(normPath),
+    );
     return;
   }
 

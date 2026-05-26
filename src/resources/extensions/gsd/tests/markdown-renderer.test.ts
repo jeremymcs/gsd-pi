@@ -1208,6 +1208,47 @@ test('── markdown-renderer: repairStaleRenders handles descriptor roadmap pr
   }
 });
 
+test('── markdown-renderer: repairStaleRenders handles legacy descriptor roadmap filenames ──', async () => {
+  const tmpDir = makeTmpDir();
+  const dbPath = path.join(tmpDir, '.gsd', 'gsd.db');
+  openDatabase(dbPath);
+  clearAllCaches();
+
+  try {
+    const milestoneDir = path.join(tmpDir, '.gsd', 'milestones', 'M001');
+    fs.mkdirSync(milestoneDir, { recursive: true });
+
+    insertMilestone({ id: 'M001', title: 'Test', status: 'active' });
+    insertSlice({ id: 'S01', milestoneId: 'M001', title: 'Core', status: 'complete' });
+
+    const staleRoadmap = makeRoadmapContent([
+      { id: 'S01', title: 'Core', done: false },
+    ]);
+    const legacyRoadmapPath = path.join(milestoneDir, 'M001-legacy-descriptor-ROADMAP.md');
+    fs.writeFileSync(legacyRoadmapPath, staleRoadmap);
+    clearAllCaches();
+
+    const staleBefore = detectStaleRenders(tmpDir);
+    assert.ok(
+      staleBefore.some(s => s.path === legacyRoadmapPath && s.reason.includes('S01')),
+      'legacy descriptor roadmap filename should be detected as stale',
+    );
+
+    const repaired = await repairStaleRenders(tmpDir);
+    assert.ok(repaired > 0, 'repairStaleRenders should repair the legacy descriptor roadmap');
+
+    clearAllCaches();
+    const staleAfter = detectStaleRenders(tmpDir);
+    assert.deepStrictEqual(staleAfter, [], 'legacy descriptor roadmap should be clear after repair');
+
+    const repairedContent = fs.readFileSync(legacyRoadmapPath, 'utf-8');
+    assert.ok(repairedContent.includes('[x] **S01:'), 'legacy descriptor roadmap is repaired');
+  } finally {
+    closeDatabase();
+    cleanupDir(tmpDir);
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Stale Detection — Missing Task Summary
 // ═══════════════════════════════════════════════════════════════════════════
