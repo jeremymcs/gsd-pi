@@ -273,6 +273,11 @@ function getBedrockBaseUrl(modelId: string): string {
 		: "https://bedrock-runtime.us-east-1.amazonaws.com";
 }
 
+function formatCost(value: number): string {
+	const rounded = Number(value.toFixed(12));
+	return Object.is(rounded, -0) ? "0" : String(rounded);
+}
+
 async function fetchOpenRouterModels(): Promise<Model<any>[]> {
 	try {
 		console.log("Fetching models from OpenRouter API...");
@@ -1911,10 +1916,10 @@ export const MODELS = {
 			}
 			output += `\t\t\tinput: [${model.input.map(i => `"${i}"`).join(", ")}],\n`;
 			output += `\t\t\tcost: {\n`;
-			output += `\t\t\t\tinput: ${model.cost.input},\n`;
-			output += `\t\t\t\toutput: ${model.cost.output},\n`;
-			output += `\t\t\t\tcacheRead: ${model.cost.cacheRead},\n`;
-			output += `\t\t\t\tcacheWrite: ${model.cost.cacheWrite},\n`;
+			output += `\t\t\t\tinput: ${formatCost(model.cost.input)},\n`;
+			output += `\t\t\t\toutput: ${formatCost(model.cost.output)},\n`;
+			output += `\t\t\t\tcacheRead: ${formatCost(model.cost.cacheRead)},\n`;
+			output += `\t\t\t\tcacheWrite: ${formatCost(model.cost.cacheWrite)},\n`;
 			output += `\t\t\t},\n`;
 			output += `\t\t\tcontextWindow: ${model.contextWindow},\n`;
 			output += `\t\t\tmaxTokens: ${model.maxTokens},\n`;

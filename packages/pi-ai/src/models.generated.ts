@@ -8050,8 +8050,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.7999999999999999,
-				output: 3.1999999999999997,
+				input: 0.8,
+				output: 3.2,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -8084,7 +8084,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.7999999999999999,
+				input: 0.8,
 				output: 4,
 				cacheRead: 0.08,
 				cacheWrite: 1,
@@ -8103,7 +8103,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 5,
-				cacheRead: 0.09999999999999999,
+				cacheRead: 0.1,
 				cacheWrite: 1.25,
 			},
 			contextWindow: 200000,
@@ -8445,8 +8445,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -8513,7 +8513,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.77,
 				cacheRead: 0.135,
 				cacheWrite: 0,
@@ -8531,7 +8531,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.21,
-				output: 0.7899999999999999,
+				output: 0.79,
 				cacheRead: 0.13,
 				cacheWrite: 0,
 			},
@@ -8565,7 +8565,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.5,
-				output: 2.1500000000000004,
+				output: 2.15,
 				cacheRead: 0.35,
 				cacheWrite: 0,
 			},
@@ -8634,8 +8634,8 @@ export const MODELS = {
 			thinkingLevelMap: {"minimal":null,"low":null,"medium":null,"high":"high","xhigh":"max"},
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.19999999999999998,
+				input: 0.1,
+				output: 0.2,
 				cacheRead: 0.02,
 				cacheWrite: 0,
 			},
@@ -8706,10 +8706,10 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
-				cacheRead: 0.024999999999999998,
-				cacheWrite: 0.08333333333333334,
+				input: 0.1,
+				output: 0.4,
+				cacheRead: 0.025,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1000000,
 			maxTokens: 8192,
@@ -8743,7 +8743,7 @@ export const MODELS = {
 				input: 0.3,
 				output: 2.5,
 				cacheRead: 0.03,
-				cacheWrite: 0.08333333333333334,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65535,
@@ -8757,10 +8757,10 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0.01,
-				cacheWrite: 0.08333333333333334,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65535,
@@ -8774,10 +8774,10 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0.01,
-				cacheWrite: 0.08333333333333334,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65535,
@@ -8844,8 +8844,8 @@ export const MODELS = {
 			cost: {
 				input: 0.5,
 				output: 3,
-				cacheRead: 0.049999999999999996,
-				cacheWrite: 0.08333333333333334,
+				cacheRead: 0.05,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65536,
@@ -8861,8 +8861,8 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 1.5,
-				cacheRead: 0.024999999999999998,
-				cacheWrite: 0.08333333333333334,
+				cacheRead: 0.025,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65536,
@@ -8878,8 +8878,8 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 1.5,
-				cacheRead: 0.024999999999999998,
-				cacheWrite: 0.08333333333333334,
+				cacheRead: 0.025,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65536,
@@ -8895,7 +8895,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 12,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0.375,
 			},
 			contextWindow: 1048576,
@@ -8912,7 +8912,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 12,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0.375,
 			},
 			contextWindow: 1048756,
@@ -8930,7 +8930,7 @@ export const MODELS = {
 				input: 1.5,
 				output: 9,
 				cacheRead: 0.15,
-				cacheWrite: 0.08333333333333334,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65536,
@@ -9046,9 +9046,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.09999999999999999,
-				cacheRead: 0.049999999999999996,
+				input: 0.05,
+				output: 0.1,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -9066,7 +9066,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 0.75,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 128000,
@@ -9149,8 +9149,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
-				output: 0.39999999999999997,
+				input: 0.4,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -9167,7 +9167,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.02,
-				output: 0.049999999999999996,
+				output: 0.05,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -9183,7 +9183,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.32,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -9234,7 +9234,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2.2,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -9319,7 +9319,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.27899999999999997,
+				input: 0.279,
 				output: 1.2,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -9337,7 +9337,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.3,
-				output: 0.8999999999999999,
+				output: 0.9,
 				cacheRead: 0.03,
 				cacheWrite: 0,
 			},
@@ -9353,7 +9353,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0.04,
 				cacheWrite: 0,
@@ -9370,7 +9370,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0.04,
 				cacheWrite: 0,
@@ -9387,7 +9387,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0.01,
 				cacheWrite: 0,
@@ -9404,8 +9404,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
-				output: 0.19999999999999998,
+				input: 0.2,
+				output: 0.2,
 				cacheRead: 0.02,
 				cacheWrite: 0,
 			},
@@ -9421,8 +9421,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.09999999999999999,
+				input: 0.1,
+				output: 0.1,
 				cacheRead: 0.01,
 				cacheWrite: 0,
 			},
@@ -9457,7 +9457,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 6,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 128000,
@@ -9474,7 +9474,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 6,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -9491,7 +9491,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 6,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -9508,7 +9508,7 @@ export const MODELS = {
 			cost: {
 				input: 0.5,
 				output: 1.5,
-				cacheRead: 0.049999999999999996,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 262144,
@@ -9523,7 +9523,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0.04,
 				cacheWrite: 0,
@@ -9557,7 +9557,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0.04,
 				cacheWrite: 0,
@@ -9591,7 +9591,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.6,
 				cacheRead: 0.02,
 				cacheWrite: 0,
@@ -9626,7 +9626,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.075,
-				output: 0.19999999999999998,
+				output: 0.2,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -9644,7 +9644,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 6,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 65536,
@@ -9661,7 +9661,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 6,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -9676,7 +9676,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0.01,
 				cacheWrite: 0,
@@ -9693,7 +9693,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.5700000000000001,
+				input: 0.57,
 				output: 2.3,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -9744,7 +9744,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 1.9,
 				cacheRead: 0.09,
 				cacheWrite: 0,
@@ -9812,8 +9812,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -9829,8 +9829,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.19999999999999998,
+				input: 0.05,
+				output: 0.2,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -9881,7 +9881,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.09,
-				output: 0.44999999999999996,
+				output: 0.45,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -10118,9 +10118,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
-				output: 1.5999999999999999,
-				cacheRead: 0.09999999999999999,
+				input: 0.4,
+				output: 1.6,
+				cacheRead: 0.1,
 				cacheWrite: 0,
 			},
 			contextWindow: 1047576,
@@ -10135,9 +10135,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
-				cacheRead: 0.024999999999999998,
+				input: 0.1,
+				output: 0.4,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 1047576,
@@ -10307,7 +10307,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 2,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 400000,
@@ -10322,8 +10322,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.39999999999999997,
+				input: 0.05,
+				output: 0.4,
 				cacheRead: 0.01,
 				cacheWrite: 0,
 			},
@@ -10426,7 +10426,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 2,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 400000,
@@ -10586,7 +10586,7 @@ export const MODELS = {
 			thinkingLevelMap: {"xhigh":"xhigh"},
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 1.25,
 				cacheRead: 0.02,
 				cacheWrite: 0,
@@ -11031,7 +11031,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 1.1,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -11049,7 +11049,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.36,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11066,7 +11066,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.04,
-				output: 0.09999999999999999,
+				output: 0.1,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11084,7 +11084,7 @@ export const MODELS = {
 			cost: {
 				input: 0.26,
 				output: 0.78,
-				cacheRead: 0.052000000000000005,
+				cacheRead: 0.052,
 				cacheWrite: 0.325,
 			},
 			contextWindow: 1000000,
@@ -11133,7 +11133,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.24,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -11150,8 +11150,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.45499999999999996,
-				output: 1.8199999999999998,
+				input: 0.455,
+				output: 1.82,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11168,7 +11168,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.071,
-				output: 0.09999999999999999,
+				output: 0.1,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11184,7 +11184,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.14950000000000002,
+				input: 0.1495,
 				output: 1.495,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -11202,7 +11202,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.09,
-				output: 0.44999999999999996,
+				output: 0.45,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11236,7 +11236,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.08,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0.08,
 				cacheWrite: 0,
 			},
@@ -11269,9 +11269,9 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.39999999999999997,
-				cacheRead: 0.049999999999999996,
+				input: 0.05,
+				output: 0.4,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -11287,7 +11287,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.22,
-				output: 1.7999999999999998,
+				output: 1.8,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11338,7 +11338,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.11,
-				output: 0.7999999999999999,
+				output: 0.8,
 				cacheRead: 0.07,
 				cacheWrite: 0,
 			},
@@ -11473,7 +11473,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.88,
 				cacheRead: 0.11,
 				cacheWrite: 0,
@@ -11541,8 +11541,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.10400000000000001,
-				output: 0.41600000000000004,
+				input: 0.104,
+				output: 0.416,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11626,7 +11626,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.13899999999999998,
+				input: 0.139,
 				output: 1,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -11712,7 +11712,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.3,
-				output: 1.7999999999999998,
+				output: 1.8,
 				cacheRead: 0,
 				cacheWrite: 0.375,
 			},
@@ -11729,7 +11729,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.29,
-				output: 3.1999999999999997,
+				output: 3.2,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11830,8 +11830,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.09999999999999999,
+				input: 0.1,
+				output: 0.1,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11915,7 +11915,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.06599999999999999,
+				input: 0.066,
 				output: 0.26,
 				cacheRead: 0.029,
 				cacheWrite: 0,
@@ -11932,7 +11932,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.16999999999999998,
+				input: 0.17,
 				output: 0.43,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -11949,8 +11949,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
-				output: 0.39999999999999997,
+				input: 0.4,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -11985,7 +11985,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -12002,7 +12002,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -12019,7 +12019,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 2,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 256000,
@@ -12034,7 +12034,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0.01,
 				cacheWrite: 0,
@@ -12051,7 +12051,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0.08,
 				cacheWrite: 0,
@@ -12070,7 +12070,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 3,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1048576,
@@ -12119,8 +12119,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.09999999999999999,
+				input: 0.1,
+				output: 0.1,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -12188,7 +12188,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.6,
-				output: 1.7999999999999998,
+				output: 1.8,
 				cacheRead: 0.11,
 				cacheWrite: 0,
 			},
@@ -12222,8 +12222,8 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.3,
-				output: 0.8999999999999999,
-				cacheRead: 0.049999999999999996,
+				output: 0.9,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 131072,
@@ -12238,7 +12238,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 1.75,
 				cacheRead: 0.08,
 				cacheWrite: 0,
@@ -12256,7 +12256,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.06,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0.01,
 				cacheWrite: 0,
 			},
@@ -12342,7 +12342,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 5,
-				cacheRead: 0.09999999999999999,
+				cacheRead: 0.1,
 				cacheWrite: 1.25,
 			},
 			contextWindow: 200000,
@@ -12394,7 +12394,7 @@ export const MODELS = {
 				input: 1.5,
 				output: 9,
 				cacheRead: 0.15,
-				cacheWrite: 0.08333333333333334,
+				cacheWrite: 0.083333333333,
 			},
 			contextWindow: 1048576,
 			maxTokens: 65536,
@@ -12410,7 +12410,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 12,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0.375,
 			},
 			contextWindow: 1048576,
@@ -12904,7 +12904,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 4,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -12974,7 +12974,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -13040,7 +13040,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 4,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -13057,8 +13057,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0.001,
 				cacheWrite: 0.125,
 			},
@@ -13074,7 +13074,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2.4,
 				cacheRead: 0.04,
 				cacheWrite: 0.5,
@@ -13092,7 +13092,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.6,
-				output: 3.5999999999999996,
+				output: 3.6,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -13110,7 +13110,7 @@ export const MODELS = {
 			cost: {
 				input: 0.5,
 				output: 3,
-				cacheRead: 0.09999999999999999,
+				cacheRead: 0.1,
 				cacheWrite: 0.625,
 			},
 			contextWindow: 1000000,
@@ -13159,7 +13159,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.7999999999999999,
+				input: 0.8,
 				output: 4,
 				cacheRead: 0.08,
 				cacheWrite: 1,
@@ -13178,7 +13178,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 5,
-				cacheRead: 0.09999999999999999,
+				cacheRead: 0.1,
 				cacheWrite: 1.25,
 			},
 			contextWindow: 200000,
@@ -13352,7 +13352,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.25,
-				output: 0.8999999999999999,
+				output: 0.9,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -13370,7 +13370,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 2,
-				cacheRead: 0.049999999999999996,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 256000,
@@ -13540,7 +13540,7 @@ export const MODELS = {
 			cost: {
 				input: 0.15,
 				output: 0.6,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 1048576,
@@ -13589,8 +13589,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
+				input: 0.1,
+				output: 0.4,
 				cacheRead: 0.01,
 				cacheWrite: 0,
 			},
@@ -13625,7 +13625,7 @@ export const MODELS = {
 			cost: {
 				input: 0.5,
 				output: 3,
-				cacheRead: 0.049999999999999996,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -13642,7 +13642,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 12,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -13693,7 +13693,7 @@ export const MODELS = {
 			cost: {
 				input: 2,
 				output: 12,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -13726,7 +13726,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.13,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -13743,7 +13743,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.14,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -13761,7 +13761,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 0.75,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 128000,
@@ -13913,7 +13913,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.24,
-				output: 0.9700000000000001,
+				output: 0.97,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -13929,7 +13929,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.16999999999999998,
+				input: 0.17,
 				output: 0.66,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14066,7 +14066,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.3,
-				output: 0.8999999999999999,
+				output: 0.9,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -14082,7 +14082,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14099,7 +14099,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14116,7 +14116,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14133,8 +14133,8 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.09999999999999999,
+				input: 0.1,
+				output: 0.1,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -14167,7 +14167,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
+				input: 0.4,
 				output: 2,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14201,7 +14201,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14252,7 +14252,7 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text"],
 			cost: {
-				input: 0.5700000000000001,
+				input: 0.57,
 				output: 2.3,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14322,7 +14322,7 @@ export const MODELS = {
 			cost: {
 				input: 0.6,
 				output: 3,
-				cacheRead: 0.09999999999999999,
+				cacheRead: 0.1,
 				cacheWrite: 0,
 			},
 			contextWindow: 262114,
@@ -14354,7 +14354,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.6,
 				cacheRead: 0,
 				cacheWrite: 0,
@@ -14372,7 +14372,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.06,
-				output: 0.22999999999999998,
+				output: 0.23,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -14422,9 +14422,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.39999999999999997,
-				output: 1.5999999999999999,
-				cacheRead: 0.09999999999999999,
+				input: 0.4,
+				output: 1.6,
+				cacheRead: 0.1,
 				cacheWrite: 0,
 			},
 			contextWindow: 1047576,
@@ -14439,9 +14439,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.09999999999999999,
-				output: 0.39999999999999997,
-				cacheRead: 0.024999999999999998,
+				input: 0.1,
+				output: 0.4,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 1047576,
@@ -14543,7 +14543,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 2,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 400000,
@@ -14558,8 +14558,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.39999999999999997,
+				input: 0.05,
+				output: 0.4,
 				cacheRead: 0.005,
 				cacheWrite: 0,
 			},
@@ -14628,7 +14628,7 @@ export const MODELS = {
 			cost: {
 				input: 0.25,
 				output: 2,
-				cacheRead: 0.024999999999999998,
+				cacheRead: 0.025,
 				cacheWrite: 0,
 			},
 			contextWindow: 400000,
@@ -14822,7 +14822,7 @@ export const MODELS = {
 			thinkingLevelMap: {"xhigh":"xhigh"},
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 1.25,
 				cacheRead: 0.02,
 				cacheWrite: 0,
@@ -14893,8 +14893,8 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.049999999999999996,
-				output: 0.19999999999999998,
+				input: 0.05,
+				output: 0.2,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -15063,9 +15063,9 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.5,
-				cacheRead: 0.049999999999999996,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -15080,9 +15080,9 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 0.5,
-				cacheRead: 0.049999999999999996,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -15099,7 +15099,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15116,7 +15116,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15133,7 +15133,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15150,7 +15150,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15167,7 +15167,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15184,7 +15184,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 2000000,
@@ -15201,7 +15201,7 @@ export const MODELS = {
 			cost: {
 				input: 1.25,
 				output: 2.5,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -15218,7 +15218,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 2,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 256000,
@@ -15233,7 +15233,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.09999999999999999,
+				input: 0.1,
 				output: 0.3,
 				cacheRead: 0.01,
 				cacheWrite: 0,
@@ -15252,7 +15252,7 @@ export const MODELS = {
 			cost: {
 				input: 1,
 				output: 3,
-				cacheRead: 0.19999999999999998,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 1000000,
@@ -15318,7 +15318,7 @@ export const MODELS = {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				input: 0.19999999999999998,
+				input: 0.2,
 				output: 1.1,
 				cacheRead: 0.03,
 				cacheWrite: 0,
@@ -15336,7 +15336,7 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.6,
-				output: 1.7999999999999998,
+				output: 1.8,
 				cacheRead: 0.11,
 				cacheWrite: 0,
 			},
@@ -15370,8 +15370,8 @@ export const MODELS = {
 			input: ["text", "image"],
 			cost: {
 				input: 0.3,
-				output: 0.8999999999999999,
-				cacheRead: 0.049999999999999996,
+				output: 0.9,
+				cacheRead: 0.05,
 				cacheWrite: 0,
 			},
 			contextWindow: 128000,
@@ -15421,7 +15421,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.07,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
@@ -15438,7 +15438,7 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 0.06,
-				output: 0.39999999999999997,
+				output: 0.4,
 				cacheRead: 0.01,
 				cacheWrite: 0,
 			},
@@ -15455,8 +15455,8 @@ export const MODELS = {
 			input: ["text"],
 			cost: {
 				input: 1,
-				output: 3.1999999999999997,
-				cacheRead: 0.19999999999999998,
+				output: 3.2,
+				cacheRead: 0.2,
 				cacheWrite: 0,
 			},
 			contextWindow: 202800,

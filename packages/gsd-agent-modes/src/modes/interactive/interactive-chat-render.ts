@@ -65,8 +65,8 @@ function addUserMessageComponent(host: InteractiveModeDelegateHost, userComponen
 }
 
 function finalizeChatMutation(host: InteractiveModeDelegateHost): void {
-	reconcileChatTurnConnections(host.chatContainer.children);
 	trimChatHistory(host);
+	reconcileChatTurnConnections(host.chatContainer.children);
 }
 
 export function addMessageToChat(host: InteractiveModeDelegateHost, message: AgentMessage, options?: { populateHistory?: boolean }): void {
@@ -307,8 +307,8 @@ export function renderSessionContext(host: InteractiveModeDelegateHost,
 			component.markHistoricalNoResult();
 		}
 		host.pendingTools.clear();
-		reconcileChatTurnConnections(host.chatContainer.children);
 		trimChatHistory(host);
+		reconcileChatTurnConnections(host.chatContainer.children);
 		host.ui.requestRender();
 	}
 
