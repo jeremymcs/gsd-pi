@@ -14,7 +14,7 @@ describe("normalizeToolArguments", () => {
 	test("aliases file_path to path for Read (PascalCase tool name)", () => {
 		const args = { file_path: "src/app.js" };
 		normalizeToolArguments("Read", args);
-		expect(args).toEqual({ path: "src/app.js" });
+		assert.deepEqual(args, { path: "src/app.js" });
 	});
 
 	test("aliases file_path to path for write", () => {
@@ -32,13 +32,13 @@ describe("normalizeToolArguments", () => {
 	test("aliases contents to content for write", () => {
 		const args = { file_path: "src/app.js", contents: "hello" };
 		normalizeToolArguments("Write", args);
-		expect(args).toEqual({ path: "src/app.js", content: "hello" });
+		assert.deepEqual(args, { path: "src/app.js", content: "hello" });
 	});
 
 	test("aliases cmd to command for bash", () => {
 		const args = { cmd: "npm test" };
 		normalizeToolArguments("Bash", args);
-		expect(args).toEqual({ command: "npm test" });
+		assert.deepEqual(args, { command: "npm test" });
 	});
 
 	test("converts Cursor-style Edit arguments to pi edit schema", () => {
@@ -49,7 +49,7 @@ describe("normalizeToolArguments", () => {
 			replace_all: false,
 		};
 		normalizeToolArguments("Edit", args);
-		expect(args).toEqual({
+		assert.deepEqual(args, {
 			path: "/tmp/index.html",
 			edits: [{ oldText: "foo", newText: "bar" }],
 		});
@@ -63,7 +63,7 @@ describe("normalizeToolArguments", () => {
 			new_string: "d",
 		};
 		normalizeToolArguments("edit", args);
-		expect(args).toEqual({
+		assert.deepEqual(args, {
 			path: "/tmp/a.ts",
 			edits: [
 				{ oldText: "a", newText: "b" },
@@ -87,7 +87,7 @@ describe("normalizeToolArguments", () => {
 			prompt: "Summarize structure",
 		};
 		normalizeToolArguments("Agent", args);
-		expect(args).toEqual({
+		assert.deepEqual(args, {
 			agent: "scout",
 			task: "Scout project\n\nSummarize structure",
 		});
@@ -102,11 +102,11 @@ describe("normalizeToolArguments", () => {
 
 describe("isEmptyPathToolArguments", () => {
 	test("detects empty read calls", () => {
-		expect(isEmptyPathToolArguments("Read", {})).toBe(true);
+		assert.equal(isEmptyPathToolArguments("Read", {}), true);
 	});
 
 	test("accepts aliased paths before normalization", () => {
-		expect(isEmptyPathToolArguments("read", { file_path: "/tmp/x" })).toBe(false);
+		assert.equal(isEmptyPathToolArguments("read", { file_path: "/tmp/x" }), false);
 	});
 });
 
@@ -125,7 +125,7 @@ describe("validateToolArguments integration", () => {
 			name: "Read",
 			arguments: { file_path: "/tmp/index.html" },
 		});
-		expect(validated.path).toBe("/tmp/index.html");
+		assert.equal(validated.path, "/tmp/index.html");
 	});
 
 	test("accepts read calls that use filePath instead of path", () => {
@@ -187,7 +187,7 @@ describe("validateToolArguments integration", () => {
 				replace_all: false,
 			},
 		});
-		expect(validated).toEqual({
+		assert.deepEqual(validated, {
 			path: "/tmp/index.html",
 			edits: [{ oldText: "<html>", newText: '<html id="root">' }],
 		});
