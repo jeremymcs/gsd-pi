@@ -105,6 +105,10 @@ describe("isEmptyPathToolArguments", () => {
 		assert.equal(isEmptyPathToolArguments("Read", {}), true);
 	});
 
+	test("ignores non-read calls with non-record arguments", () => {
+		assert.equal(isEmptyPathToolArguments("bash", undefined), false);
+	});
+
 	test("accepts aliased paths before normalization", () => {
 		assert.equal(isEmptyPathToolArguments("read", { file_path: "/tmp/x" }), false);
 	});

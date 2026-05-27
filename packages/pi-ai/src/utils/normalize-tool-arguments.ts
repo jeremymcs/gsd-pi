@@ -145,12 +145,12 @@ export function normalizeToolArguments(toolName: string, args: unknown): unknown
  * Models sometimes emit phantom paired Read {} calls alongside valid reads.
  */
 export function isEmptyPathToolArguments(toolName: string, args: unknown): boolean {
-	if (!isRecord(args)) {
-		return true;
-	}
-
 	if (canonicalToolName(toolName) !== "read") {
 		return false;
+	}
+
+	if (!isRecord(args)) {
+		return true;
 	}
 
 	const path = args.path ?? args.file_path ?? args.filePath ?? args.file;

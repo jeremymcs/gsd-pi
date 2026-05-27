@@ -928,13 +928,13 @@ export async function handleAgentEvent(host: InteractiveModeStateHost & {
 							undefined,
 							connectedToUser,
 						);
-				host.chatContainer.addChild(host.streamingComponent);
-				reconcileChatTurnConnections(host.chatContainer.children);
-			}
-				if (host.streamingComponent) {
-					host.streamingComponent.setShowMetadata(true);
-					host.streamingComponent.updateContent(host.streamingMessage);
-				}
+						host.chatContainer.addChild(host.streamingComponent);
+						reconcileChatTurnConnections(host.chatContainer.children);
+					}
+					if (host.streamingComponent) {
+						host.streamingComponent.setShowMetadata(true);
+						host.streamingComponent.updateContent(host.streamingMessage);
+					}
 
 				if (host.streamingMessage.stopReason === "aborted" || host.streamingMessage.stopReason === "error") {
 					if (!errorMessage) {
