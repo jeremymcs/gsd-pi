@@ -358,6 +358,8 @@ export function scopeGsdWorkflowToolsForDispatch(
     : buildMinimalGsdWorkflowToolSet(current, registeredToolNames);
   const toolsChanged = !(scoped.length === current.length && scoped.every((name, index) => name === current[index]));
   const skillManifest = resolveSkillManifest(unitType);
+  // skillManifest entries are normalized skill *names* (not paths); setVisibleSkills
+  // narrows the rendered <available_skills> catalog via rebuildSystemPrompt.
   const canScopeSkills = skillManifest !== null && pi.getVisibleSkills && pi.setVisibleSkills;
   if (!toolsChanged && !canScopeSkills) {
     return null;
@@ -607,6 +609,14 @@ export function registerHooks(
       }
     }
     clearDeferredApprovalGate(beforeAgentBasePath);
+
+    const { hasSkillSnapshot, refreshCatalogForNewSkills } = await import("../skill-discovery.js");
+    if (hasSkillSnapshot()) {
+      await refreshCatalogForNewSkills({
+        reload: () => ctx.reload(),
+        notify: (message, level) => ctx.ui.notify(message, level),
+      });
+    }
 
     // GSD's own context injection (existing behavior — unchanged).
     const { buildBeforeAgentStartResult } = await import("./system-context.js");

@@ -11,11 +11,10 @@ import { loadPrompt, getTemplatesDir } from "../prompt-loader.js";
 import { readForensicsMarker } from "../forensics.js";
 import { resolveAllSkillReferences, renderPreferencesForSystemPrompt, loadEffectiveGSDPreferences } from "../preferences.js";
 import { resolveModelWithFallbacksForUnit } from "../preferences-models.js";
-import { resolveSkillReference } from "../preferences-skills.js";
+import { getInstalledSkills, normalizeSkillName, resolveInstalledSkill } from "../skills.js";
 import { resolveGsdRootFile, resolveSliceFile, resolveSlicePath, resolveTaskFile, resolveTaskFiles, resolveTasksDir, relSliceFile, relSlicePath, relTaskFile } from "../paths.js";
 import { extractIntroAndRules } from "../knowledge-parser.js";
 import { ensureCodebaseMapFresh, readCodebaseMap } from "../codebase-generator.js";
-import { hasSkillSnapshot, detectNewSkills, formatSkillsXml } from "../skill-discovery.js";
 import { getActiveAutoWorktreeContext } from "../auto-worktree.js";
 import { getActiveWorktreeName, getWorktreeOriginalCwd } from "../worktree-session-state.js";
 import { deriveState } from "../state.js";
@@ -74,10 +73,17 @@ export const BUNDLED_SKILL_TRIGGERS: Array<{ trigger: string; skill: string }> =
 
 function buildBundledSkillsTable(): string {
   const cwd = process.cwd();
+  const installed = getInstalledSkills();
+  const installedByName = new Map(installed.map((skill) => [normalizeSkillName(skill.name), skill]));
   const rows: string[] = [];
   for (const { trigger, skill } of BUNDLED_SKILL_TRIGGERS) {
-    const resolution = resolveSkillReference(skill, cwd);
-    if (resolution.method === "unresolved") continue; // skill not installed — omit from prompt
+    const match = installedByName.get(normalizeSkillName(skill));
+    if (match) {
+      rows.push(`| ${trigger} | \`${match.filePath}\` |`);
+      continue;
+    }
+    const resolution = resolveInstalledSkill(skill, cwd, installed);
+    if (resolution.method === "unresolved" || !resolution.resolvedPath) continue;
     rows.push(`| ${trigger} | \`${resolution.resolvedPath}\` |`);
   }
   if (rows.length === 0) {
@@ -201,14 +207,6 @@ export async function buildBeforeAgentStartResult(
     );
   }
 
-  let newSkillsBlock = "";
-  if (hasSkillSnapshot()) {
-    const newSkills = detectNewSkills();
-    if (newSkills.length > 0) {
-      newSkillsBlock = formatSkillsXml(newSkills);
-    }
-  }
-
   let codebaseBlock = "";
   try {
     const codebaseOptions = loadedPreferences?.preferences?.codebase
@@ -264,13 +262,13 @@ export async function buildBeforeAgentStartResult(
   // Keeping it out of `fullSystem` preserves provider prompt-cache stability
   // for the static system/tool prefix. The dynamic memory block rides the
   // volatile context message instead. (#5019)
-  const fullSystem = `${event.systemPrompt}\n\n[SYSTEM CONTEXT — GSD]\n\n${systemContent}${preferenceBlock}${knowledgeBlock}${codebaseBlock}${newSkillsBlock}${worktreeBlock}${subagentModelBlock}`;
+  const fullSystem = `${event.systemPrompt}\n\n[SYSTEM CONTEXT — GSD]\n\n${systemContent}${preferenceBlock}${knowledgeBlock}${codebaseBlock}${worktreeBlock}${subagentModelBlock}`;
 
   stopContextTimer({
     systemPromptSize: fullSystem.length,
     injectionSize: injection?.length ?? forensicsInjection?.length ?? 0,
     hasPreferences: preferenceBlock.length > 0,
-    hasNewSkills: newSkillsBlock.length > 0,
+    hasNewSkills: false,
   });
 
   const contextMessage = buildContextMessage({ memoryBlock, injection, forensicsInjection });

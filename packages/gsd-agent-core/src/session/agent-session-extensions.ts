@@ -258,6 +258,7 @@ export class AgentSessionExtensionsModule {
 				getVisibleSkills: () => this.host._visibleSkillNames,
 				setVisibleSkills: (skillNames) => {
 					this.host._visibleSkillNames = skillNames;
+					this.refreshSystemPromptForVisibleSkills();
 				},
 				emitBeforeModelSelect: (event) => this.host._extensionRunner.emitBeforeModelSelect(event),
 				emitAdjustToolSet: (event) => this.host._extensionRunner.emitAdjustToolSet(event),
@@ -532,8 +533,19 @@ export class AgentSessionExtensionsModule {
 			selectedTools: validToolNames,
 			toolSnippets,
 			promptGuidelines,
+			skillFilter: (skill) => {
+				const visible = this.host._visibleSkillNames;
+				if (visible === undefined) return true;
+				return visible.includes(skill.name);
+			},
 		};
 		return buildSystemPrompt(this.host._baseSystemPromptOptions);
+	}
+
+	private refreshSystemPromptForVisibleSkills(): void {
+		const toolNames = this.getActiveToolNames();
+		this.host._baseSystemPrompt = this.rebuildSystemPrompt(toolNames);
+		this.host.agent.state.systemPrompt = this.host._baseSystemPrompt;
 	}
 
 	getActiveToolNames(): string[] {
