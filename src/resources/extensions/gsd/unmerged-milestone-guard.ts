@@ -23,7 +23,6 @@ export interface UnmergedMilestoneBlocker {
 }
 
 const BLOCKED_COMMANDS = new Set([
-  "",
   "auto",
   "next",
   "parallel",
