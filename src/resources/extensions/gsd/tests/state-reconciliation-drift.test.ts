@@ -658,7 +658,7 @@ test("ADR-017 (#5704): unregistered-milestone drift fails closed without importi
       assert.equal(err.failures[0]?.drift.kind, "unregistered-milestone");
       assert.match(String(err.failures[0]?.cause), /M042/);
       assert.match(String(err.failures[0]?.cause), /markdown projection/);
-      assert.match(String(err.failures[0]?.cause), /recovery\/migration/);
+      assert.match(String(err.failures[0]?.cause), /\/gsd recover/);
       return true;
     },
   );
