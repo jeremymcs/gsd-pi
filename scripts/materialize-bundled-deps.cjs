@@ -36,7 +36,7 @@ function materialize() {
 
     const linkTarget = fs.readlinkSync(target);
     const source = resolveSymlinkTarget(target);
-    fs.rmSync(target);
+    fs.unlinkSync(target);
     fs.cpSync(source, target, { recursive: true });
     manifest.push({ dep, linkTarget });
   }
