@@ -300,7 +300,7 @@ export async function runOnboarding(
   // ── Intro ─────────────────────────────────────────────────────────────────
   if (opts.showIntro !== false) {
     process.stderr.write(renderGsdPiLogo(pc.cyan))
-    process.stderr.write(`  ${pc.bold}${GSD_PI_BRAND}${pc.reset}  ${pc.dim}${GSD_WEBSITE}${pc.reset}\n\n`)
+    process.stderr.write(`  ${pc.bold(GSD_PI_BRAND)}  ${pc.dim(GSD_WEBSITE)}\n\n`)
     p.intro(pc.bold('Welcome to GSD — let\'s get you set up'))
   }
 
