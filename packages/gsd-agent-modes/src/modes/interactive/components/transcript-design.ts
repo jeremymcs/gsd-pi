@@ -314,7 +314,6 @@ export function renderUserRail(
 		titleRight,
 		railColor: "border",
 		titleColor: "border",
-		bodyBg: "userMessageBg",
 		closeBottom: !opts.continuesToAssistant,
 	});
 }
