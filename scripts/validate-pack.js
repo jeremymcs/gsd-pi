@@ -8,7 +8,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -596,6 +596,36 @@ try {
         maxBuffer: DEFAULT_MAX_BUFFER,
       },
     );
+    console.log('==> Verifying copied extension resolves hoisted externals...');
+    const localYamlDir = join(globalRoot, 'node_modules', 'yaml');
+    const hoistedYamlDir = join(globalNodeModules, 'yaml');
+    if (existsSync(localYamlDir)) {
+      if (!existsSync(hoistedYamlDir)) {
+        cpSync(localYamlDir, hoistedYamlDir, { recursive: true, dereference: true });
+      }
+      rmSync(localYamlDir, { recursive: true, force: true });
+    }
+    const agentDir = join(globalPrefix, 'agent-home');
+    execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        [
+          `const { initResources } = await import(${JSON.stringify(pathToFileURL(join(globalRoot, 'dist', 'resource-loader.js')).href)});`,
+          `initResources(${JSON.stringify(agentDir)});`,
+          `await import(${JSON.stringify(pathToFileURL(join(agentDir, 'extensions', 'gsd', 'commands', 'handlers', 'workflow.js')).href)});`,
+        ].join('\n'),
+      ],
+      {
+        cwd: globalRoot,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 15000,
+        maxBuffer: DEFAULT_MAX_BUFFER,
+      },
+    );
+    console.log('    Copied /gsd workflow handler resolves hoisted yaml.');
     console.log('    Global --ignore-scripts install + repair resolves externals and pi-ai/pi-coding-agent.');
   } catch (err) {
     console.log('ERROR: Global install smoke test failed.');

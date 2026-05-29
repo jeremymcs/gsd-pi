@@ -352,17 +352,16 @@ function copyDirRecursive(src: string, dest: string): void {
  * them without requiring every call site to use jiti.
  *
  * Layout differences by install method:
- * - Source/monorepo: packageRoot/node_modules has everything → simple symlink
- * - Global install (npm/bun/pnpm): merge hoisted dirname(packageRoot)/node_modules with
- *   packageRoot/node_modules so package-local deps like @sinclair/typebox resolve (#3529, #3564)
+ * - Source/monorepo: packageRoot/node_modules has everything -> simple symlink
+ * - Global install (npm/bun/pnpm): merge the nearest ancestor node_modules
+ *   with packageRoot/node_modules so both hoisted deps like yaml and
+ *   package-local deps like @sinclair/typebox resolve (#3529, #3564).
  */
 function ensureNodeModulesSymlink(agentDir: string): void {
   const agentNodeModules = join(agentDir, 'node_modules')
-  const internalNodeModules = join(packageRoot, 'node_modules')
-  const hoistedNodeModules = dirname(packageRoot)
-  const isGlobalInstall = basename(hoistedNodeModules) === 'node_modules'
+  const { internalNodeModules, hoistedNodeModules } = resolvePackageNodeModulesLayout(packageRoot)
 
-  if (!isGlobalInstall) {
+  if (!hoistedNodeModules) {
     // Source/monorepo: internal node_modules has everything
     reconcileSymlink(agentNodeModules, internalNodeModules)
     return
@@ -372,6 +371,26 @@ function ensureNodeModulesSymlink(agentDir: string): void {
   // npm often keeps runtime deps (e.g. @sinclair/typebox) package-local even when
   // @gsd/* scopes are hoisted — a hoisted-only symlink breaks extension imports.
   reconcileMergedNodeModules(agentNodeModules, hoistedNodeModules, internalNodeModules)
+}
+
+export function resolvePackageNodeModulesLayout(root: string): {
+  internalNodeModules: string
+  hoistedNodeModules: string | null
+} {
+  return {
+    internalNodeModules: join(root, 'node_modules'),
+    hoistedNodeModules: findNearestNodeModulesAncestor(root),
+  }
+}
+
+export function findNearestNodeModulesAncestor(startPath: string): string | null {
+  let current = resolve(startPath)
+  while (true) {
+    if (basename(current) === 'node_modules') return current
+    const parent = dirname(current)
+    if (parent === current) return null
+    current = parent
+  }
 }
 
 /** Check if any GSD workspace scopes exist in internal but not in hoisted node_modules */
