@@ -51,7 +51,7 @@ test("contracts build emits dist even when incremental metadata is stale", () =>
 	const buildScript = contractsPackage.scripts?.build;
 	assert.equal(
 		buildScript,
-		"tsc -p tsconfig.json --incremental false",
+		"node ../../scripts/clean-package-dist.cjs && tsc -p tsconfig.json --incremental false",
 		"contracts build must not rely on stale tsbuildinfo when dist is missing",
 	);
 });
