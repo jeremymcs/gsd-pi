@@ -357,9 +357,15 @@ test("boot and onboarding routes expose locked required state plus explicitly sk
     "alibaba-dashscope",
     "claude-code",
   ]);
-  const anthropicProvider = bootPayload.onboarding.required.providers.find((provider: any) => provider.id === "anthropic");
-  assert.equal(anthropicProvider.supports.apiKey, true);
-  assert.equal(anthropicProvider.supports.oauthAvailable, false);
+	  const anthropicProvider = bootPayload.onboarding.required.providers.find((provider: any) => provider.id === "anthropic");
+	  assert.equal(anthropicProvider.supports.apiKey, true);
+	  assert.equal(anthropicProvider.supports.oauthAvailable, false);
+	  const geminiCliProvider = bootPayload.onboarding.required.providers.find((provider: any) => provider.id === "google-gemini-cli");
+	  assert.equal(geminiCliProvider.supports.oauth, false);
+	  assert.equal(geminiCliProvider.supports.externalCli, true);
+	  const antigravityProvider = bootPayload.onboarding.required.providers.find((provider: any) => provider.id === "google-antigravity");
+	  assert.equal(antigravityProvider.supports.oauth, false);
+	  assert.equal(antigravityProvider.supports.externalCli, true);
 
   const onboardingResponse = await onboardingRoute.GET(projectRequest(fixture.projectCwd, "/api/onboarding"));
   assert.equal(onboardingResponse.status, 200);
@@ -709,10 +715,11 @@ test("claude-code ExternalCli provider is recognized as configured and unlocks o
   clearOnboardingEnv();
   const authStorage = AuthStorage.inMemory({});
   configureBridgeFixture(fixture, "sess-claude-code-extcli");
-  onboarding.configureOnboardingServiceForTests({
-    authStorage,
-    getEnvApiKey: noEnvApiKey,
-  });
+	  onboarding.configureOnboardingServiceForTests({
+	    authStorage,
+	    getEnvApiKey: noEnvApiKey,
+	    isExternalCliProvider: (id) => id === "claude-code",
+	  });
 
   t.after(async () => {
     onboarding.resetOnboardingServiceForTests();
