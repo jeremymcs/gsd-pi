@@ -16,6 +16,12 @@ export const CUSTOM_SEARCH_TOOL_NAMES = ["search-the-web", "search_and_read", "g
 
 /** Thinking block types that require signature validation by the API */
 const THINKING_TYPES = new Set(["thinking", "redacted_thinking"]);
+const NATIVE_SERVER_TOOL_TYPES = new Set([
+  "server_tool_use",
+  "web_search_tool_result",
+  "serverToolUse",
+  "webSearchResult",
+]);
 
 /**
  * Providers whose Anthropic-Messages endpoint is known to accept the native
@@ -89,11 +95,10 @@ export interface NativeSearchPI {
  * those blocks. The Anthropic API detects the modification and rejects the
  * request with "thinking blocks cannot be modified."
  *
- * Fix: Remove thinking blocks from all assistant messages in the history.
- * In Anthropic's Messages API, the messages array always ends with a user
- * message, so every assistant message is from a previous turn that has been
- * through a store/replay cycle. The model generates fresh thinking for the
- * current turn regardless.
+ * Fix: Remove thinking blocks only from assistant messages that do not carry
+ * native server-tool blocks. Complete native server-tool histories can be
+ * replayed as-is; stripping thinking from those messages is itself a latest
+ * assistant message modification.
  */
 export function stripThinkingFromHistory(
   messages: Array<Record<string, unknown>>
@@ -103,6 +108,9 @@ export function stripThinkingFromHistory(
 
     const content = msg.content;
     if (!Array.isArray(content)) continue;
+    if (content.some((block: any) => NATIVE_SERVER_TOOL_TYPES.has(block?.type))) {
+      continue;
+    }
 
     msg.content = content.filter(
       (block: any) => !THINKING_TYPES.has(block?.type)
