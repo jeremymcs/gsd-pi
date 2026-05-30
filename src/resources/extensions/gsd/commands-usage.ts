@@ -169,19 +169,27 @@ async function showUsageDialog(
   return ctx.ui.custom<boolean>((tui, theme: Theme, _kb, done) => {
     let cachedLines: string[] | undefined;
     let cachedWidth: number | undefined;
+    let cachedRows: number | undefined;
     let cachedScrollOffset: number | undefined;
     let scrollOffset = 0;
     let lastMaxScroll = 0;
     let lastVisibleRows = 1;
 
     function render(width: number): string[] {
-      if (cachedLines && cachedWidth === width && cachedScrollOffset === scrollOffset) return cachedLines;
+      const terminalRows = process.stdout.rows || 0;
+      if (
+        cachedLines &&
+        cachedWidth === width &&
+        cachedRows === terminalRows &&
+        cachedScrollOffset === scrollOffset
+      ) {
+        return cachedLines;
+      }
 
       const contentWidth = Math.max(1, width - 4);
       const body = reportText.split("\n");
       if (body[0] === "Context Usage") body.shift();
       while (body[0] === "") body.shift();
-      const terminalRows = process.stdout.rows || 0;
       const maxOverlayRows = terminalRows > 0 ? Math.max(5, Math.floor(terminalRows * 0.8)) : 24;
       const frameRows = 4;
       const visibleRows = Math.max(1, maxOverlayRows - frameRows);
@@ -197,6 +205,7 @@ async function showUsageDialog(
         scroll: { offset: scrollOffset, visibleRows, totalRows: body.length },
       });
       cachedWidth = width;
+      cachedRows = terminalRows;
       cachedScrollOffset = scrollOffset;
       return cachedLines;
     }
@@ -218,6 +227,7 @@ async function showUsageDialog(
       invalidate: () => {
         cachedLines = undefined;
         cachedWidth = undefined;
+        cachedRows = undefined;
         cachedScrollOffset = undefined;
       },
       handleInput: (data: string) => {
