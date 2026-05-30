@@ -272,6 +272,10 @@ export interface OrphanAuditResult {
   blockingStrandedWork: OrphanAuditAction | null;
 }
 
+function isBlockingStrandedWorkAction(action: OrphanAuditAction): boolean {
+  return action.kind === "in-progress-stranded-work" && action.blocksAuto;
+}
+
 function detectWorktreeEvidence(
   basePath: string,
   milestoneId: string,
@@ -667,8 +671,7 @@ export function auditOrphanedMilestoneBranches(
     recovered,
     warnings,
     actions,
-    blockingStrandedWork:
-      actions.find((action) => action.kind === "in-progress-stranded-work" && action.blocksAuto) ?? null,
+    blockingStrandedWork: actions.find(isBlockingStrandedWorkAction) ?? null,
   };
 }
 
@@ -1091,10 +1094,12 @@ export async function bootstrapAutoSession(
     // was lost due to session ending between completion and teardown.
     // Must run after DB open and before worktree entry.
     let orphanAuditRecovered = false;
+    let strandedRecoveryActions: OrphanAuditAction[] = [];
     let strandedRecoveryAction: OrphanAuditAction | null = null;
     try {
       const auditResult = auditOrphanedMilestoneBranches(base, getIsolationMode(base));
-      strandedRecoveryAction = auditResult.blockingStrandedWork;
+      strandedRecoveryActions = auditResult.actions.filter(isBlockingStrandedWorkAction);
+      strandedRecoveryAction = strandedRecoveryActions[0] ?? null;
       for (const msg of auditResult.recovered) {
         ctx.ui.notify(`Orphan audit: ${msg}`, "info");
       }
@@ -1108,6 +1113,7 @@ export async function bootstrapAutoSession(
           recovered: auditResult.recovered,
           warnings: auditResult.warnings,
           strandedRecoveryAction,
+          strandedRecoveryActions,
         });
       }
     } catch (err) {
@@ -1162,21 +1168,28 @@ export async function bootstrapAutoSession(
       }
     }
 
-    if (strandedRecoveryAction) {
+    const blockingStrandedRecoveryAction = state.activeMilestone
+      ? strandedRecoveryActions.find(
+        (action) => action.milestoneId !== state.activeMilestone?.id,
+      ) ?? strandedRecoveryAction
+      : strandedRecoveryAction;
+
+    if (blockingStrandedRecoveryAction) {
       if (!state.activeMilestone) {
         ctx.ui.notify(
-          `Stranded work for ${strandedRecoveryAction.milestoneId} blocks auto-mode, but that milestone is not active in project state. Park or discard it explicitly before continuing.`,
+          `Stranded work for ${blockingStrandedRecoveryAction.milestoneId} blocks auto-mode, but that milestone is not active in project state. Park or discard it explicitly before continuing.`,
           "error",
         );
         return releaseLockAndReturn();
       }
-      if (state.activeMilestone.id !== strandedRecoveryAction.milestoneId) {
+      if (state.activeMilestone.id !== blockingStrandedRecoveryAction.milestoneId) {
         ctx.ui.notify(
-          `Stranded work for ${strandedRecoveryAction.milestoneId} blocks auto-mode before ${state.activeMilestone.id}. Recover, park, or discard ${strandedRecoveryAction.milestoneId} explicitly before continuing.`,
+          `Stranded work for ${blockingStrandedRecoveryAction.milestoneId} blocks auto-mode before ${state.activeMilestone.id}. Recover, park, or discard ${blockingStrandedRecoveryAction.milestoneId} explicitly before continuing.`,
           "error",
         );
         return releaseLockAndReturn();
       }
+      strandedRecoveryAction = blockingStrandedRecoveryAction;
       ctx.ui.notify(
         `Recovering stranded work for ${strandedRecoveryAction.milestoneId} before dispatching new units.`,
         "info",
