@@ -314,10 +314,13 @@ function resolveCredentialSource(
   getEnvApiKeyFn: GetEnvApiKeyFn,
   isExternalCliProviderFn: (id: string) => boolean,
 ): OnboardingCredentialSource | null {
-  // ExternalCli providers authenticate through a local CLI — no credentials
-  // are stored in GSD. Treat them as always configured.
   if (isExternalCliProviderFn(providerId)) {
     return "external_cli";
+  }
+  // ExternalCli providers authenticate through a local CLI. Stored "cli"
+  // sentinels only remember selection and must not bypass PATH readiness.
+  if (CLI_AUTH_PROVIDERS.has(providerId)) {
+    return null;
   }
   if (hasStoredCredentialValue(authStorage, providerId)) {
     return "auth_file";

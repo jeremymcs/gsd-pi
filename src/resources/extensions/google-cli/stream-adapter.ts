@@ -132,9 +132,21 @@ function argsForProvider(provider: GoogleCliProviderId, model: Model<Api>, promp
 	return args;
 }
 
+export function buildGoogleCliSpawnInvocation(
+	command: string,
+	args: string[],
+	platform: NodeJS.Platform = process.platform,
+): { command: string; args: string[] } {
+	if (platform === "win32") {
+		return { command: "cmd", args: ["/c", command, ...args] };
+	}
+	return { command, args };
+}
+
 function runCli(command: string, args: string[], options?: SimpleStreamOptions): Promise<CliRunResult> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, {
+		const invocation = buildGoogleCliSpawnInvocation(command, args);
+		const child = spawn(invocation.command, invocation.args, {
 			cwd: options?.cwd || process.cwd(),
 			env: process.env,
 			stdio: ["ignore", "pipe", "pipe"],
