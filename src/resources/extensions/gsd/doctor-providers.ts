@@ -42,7 +42,7 @@ export interface ProviderCheckResult {
 
 /**
  * Providers that use external CLI authentication (not API keys).
- * These are configured only when their official CLI binary is on PATH.
+ * When explicitly selected, the provider's own CLI/session owns auth.
  */
 const CLI_AUTH_PROVIDERS = new Set([
   "claude-code",
@@ -224,14 +224,6 @@ function hasModelsJsonApiKey(providerId: string): boolean {
 function resolveKey(providerId: string): KeyLookup {
   const info = PROVIDER_REGISTRY.find(p => p.id === providerId);
 
-  // External CLI providers never store usable provider credentials in GSD.
-  // Presence of the official binary in PATH is the setup signal; the CLI owns
-  // its own login/session validation.
-  if (CLI_AUTH_PROVIDERS.has(providerId)) {
-    const found = isCliBinaryInPath(providerId);
-    return { found, source: found ? "env" : "none", backedOff: false };
-  }
-
   if (providerId === "anthropic-vertex" && process.env.ANTHROPIC_VERTEX_PROJECT_ID) {
     return { found: true, source: "env", backedOff: false };
   }
@@ -277,6 +269,12 @@ function resolveKey(providerId: string): KeyLookup {
     return { found: true, source: "models.json", backedOff: false };
   }
 
+  // Cross-provider routes can use a local CLI when it is installed. Explicit
+  // external CLI provider selections are handled in checkLlmProviders() below.
+  if (CLI_AUTH_PROVIDERS.has(providerId) && isCliBinaryInPath(providerId)) {
+    return { found: true, source: "env", backedOff: false };
+  }
+
   return { found: false, source: "none", backedOff: false };
 }
 
@@ -287,19 +285,16 @@ function checkLlmProviders(): ProviderCheckResult[] {
   const results: ProviderCheckResult[] = [];
 
   for (const providerId of required) {
-    // CLI-authenticated providers don't need API keys, but the binary must exist.
+    // CLI-authenticated providers don't need API keys. The provider's own
+    // request path validates the installed CLI/session when it is used.
     if (CLI_AUTH_PROVIDERS.has(providerId)) {
       const info = PROVIDER_REGISTRY.find(p => p.id === providerId);
-      const found = isCliBinaryInPath(providerId);
       results.push({
         name: providerId,
         label: info?.label ?? providerId,
         category: "llm",
-        status: found ? "ok" : "error",
-        message: found
-          ? `${info?.label ?? providerId} — external CLI ready`
-          : `${info?.label ?? providerId} — CLI not found`,
-        detail: found ? undefined : "Install and sign in with the provider CLI, then run /login",
+        status: "ok",
+        message: `${info?.label ?? providerId} — CLI auth (no key needed)`,
         required: true,
       });
       continue;
