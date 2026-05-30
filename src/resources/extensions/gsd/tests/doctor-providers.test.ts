@@ -702,6 +702,48 @@ test("runProviderChecks reports ok for claude-code without any API key", () => {
   rmSync(tmpHome, { recursive: true, force: true });
 });
 
+test("runProviderChecks reports errors for required Google CLI providers missing from PATH", () => {
+  const scenarios = [
+    { provider: "google-gemini-cli", label: "Google Gemini CLI", model: "gemini-2.5-pro" },
+    { provider: "google-antigravity", label: "Antigravity", model: "default" },
+  ];
+
+  for (const { provider, label, model } of scenarios) {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), `gsd-providers-${provider}-repo-`)));
+    mkdirSync(join(repo, ".gsd"), { recursive: true });
+    writeFileSync(
+      join(repo, ".gsd", "PREFERENCES.md"),
+      [
+        "---",
+        "models:",
+        "  execution:",
+        `    model: ${model}`,
+        `    provider: ${provider}`,
+        "---",
+        "",
+      ].join("\n"),
+    );
+
+    const tmpHome = realpathSync(mkdtempSync(join(tmpdir(), `gsd-providers-${provider}-home-`)));
+
+    withEnv({
+      HOME: tmpHome,
+      PATH: tmpHome,
+    }, () => {
+      withCwd(repo, () => {
+        const results = runProviderChecks();
+        const cli = results.find(r => r.name === provider);
+        assert.ok(cli, `${provider} result should exist`);
+        assert.equal(cli!.status, "error", `${provider} should error when the CLI binary is missing`);
+        assert.ok(cli!.detail?.includes(label), "should explain which CLI must be installed");
+      });
+    });
+
+    rmSync(repo, { recursive: true, force: true });
+    rmSync(tmpHome, { recursive: true, force: true });
+  }
+});
+
 test("runProviderChecks reports ok for Anthropic via claude-code binary in PATH", () => {
   // Simulate a user who has no Anthropic API key but has the claude CLI installed.
   // Their PREFERENCES use a claude model without an explicit provider, so the doctor

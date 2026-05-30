@@ -161,6 +161,11 @@ const CLI_BINARY_MAP: Record<string, string[]> = {
   "google-antigravity": ["agy"],
 };
 
+const CLI_AUTH_PATH_CHECK_PROVIDERS = new Set([
+  "google-gemini-cli",
+  "google-antigravity",
+]);
+
 /**
  * Check if a CLI provider's binary exists anywhere in PATH.
  * Fast filesystem scan — no subprocess, no network, sub-1ms.
@@ -286,15 +291,31 @@ function checkLlmProviders(): ProviderCheckResult[] {
 
   for (const providerId of required) {
     // CLI-authenticated providers don't need API keys. The provider's own
-    // request path validates the installed CLI/session when it is used.
+    // request path validates CLI sessions when it is used.
     if (CLI_AUTH_PROVIDERS.has(providerId)) {
       const info = PROVIDER_REGISTRY.find(p => p.id === providerId);
+      const label = info?.label ?? providerId;
+      if (CLI_AUTH_PATH_CHECK_PROVIDERS.has(providerId) && !isCliBinaryInPath(providerId)) {
+        const binaries = CLI_BINARY_MAP[providerId]?.map(binary => `\`${binary}\``).join(" or ");
+        results.push({
+          name: providerId,
+          label,
+          category: "llm",
+          status: "error",
+          message: `${label} — CLI not found`,
+          detail: binaries
+            ? `Install ${label} and ensure ${binaries} is on PATH`
+            : `Install ${label} and ensure its CLI is on PATH`,
+          required: true,
+        });
+        continue;
+      }
       results.push({
         name: providerId,
-        label: info?.label ?? providerId,
+        label,
         category: "llm",
         status: "ok",
-        message: `${info?.label ?? providerId} — CLI auth (no key needed)`,
+        message: `${label} — CLI auth (no key needed)`,
         required: true,
       });
       continue;
