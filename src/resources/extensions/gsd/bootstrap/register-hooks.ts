@@ -642,7 +642,7 @@ export function registerHooks(
 
     // Chain ecosystem handlers using pi's runner.ts chaining protocol:
     // each handler sees the systemPrompt mutated by prior handlers.
-    let currentSystemPrompt = gsdResult?.systemPrompt ?? event.systemPrompt;
+    let currentSystemPrompt = gsdResult?.systemPrompt ?? systemPrompt;
     // `any` because pi's BeforeAgentStartEventResult.message uses an internal
     // CustomMessage type that's not re-exported (see ecosystem/gsd-extension-api.ts).
     let lastMessage: any = gsdResult?.message;
