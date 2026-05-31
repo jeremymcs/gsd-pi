@@ -413,17 +413,18 @@ export function verifyExpectedArtifact(
       return true;
     }
 
-    const roadmapFile = resolveMilestoneFile(base, mid, "ROADMAP");
+    const roadmapFile = resolveExpectedArtifactPath("plan-milestone", mid, base);
     if (!roadmapFile || !existsSync(roadmapFile)) {
       logWarning("recovery", `verify-fail ${unitType} ${unitId}: roadmap missing`);
       return false;
     }
     try {
       const roadmap = parseLegacyRoadmap(readFileSync(roadmapFile, "utf-8"));
-      const milestoneResearchFile = resolveMilestoneFile(base, mid, "RESEARCH");
+      const milestoneResearchFile = resolveExpectedArtifactPath("research-milestone", mid, base);
+      const hasMilestoneResearch = !!milestoneResearchFile && existsSync(milestoneResearchFile);
       for (const slice of roadmap.slices) {
         if (slice.done) continue;
-        if (milestoneResearchFile && slice.id === "S01") continue;
+        if (hasMilestoneResearch && slice.id === "S01") continue;
         const depsComplete = (slice.depends ?? []).every((depId) => {
           const summaryPath = resolveExpectedArtifactPath("complete-slice", `${mid}/${depId}`, base);
           return !!summaryPath && existsSync(summaryPath);

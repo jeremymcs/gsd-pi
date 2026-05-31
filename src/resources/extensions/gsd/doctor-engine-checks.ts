@@ -3,15 +3,16 @@ import { join } from "node:path";
 
 import type { DoctorIssue } from "./doctor-types.js";
 import { isDbAvailable, _getAdapter } from "./gsd-db.js";
-import { resolveGsdPathContract, resolveMilestoneFile } from "./paths.js";
+import { gsdRoot, resolveGsdPathContract, resolveMilestoneFile } from "./paths.js";
 import { deriveState } from "./state.js";
 import { readEvents } from "./workflow-events.js";
 import { renderAllProjections } from "./workflow-projections.js";
 
 function latestExplicitReopenAt(basePath: string, milestoneId: string): string | null {
+  const root = gsdRoot(basePath);
   const candidates = [
-    join(basePath, ".gsd", "event-log.jsonl"),
-    join(basePath, ".gsd", `event-log-${milestoneId}.jsonl.archived`),
+    join(root, "event-log.jsonl"),
+    join(root, `event-log-${milestoneId}.jsonl.archived`),
   ];
   let latest: string | null = null;
   for (const file of candidates) {
