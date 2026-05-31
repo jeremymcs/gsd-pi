@@ -204,8 +204,6 @@ export function convertResponsesMessages<TApi extends Api>(
 					let msgId = parsedSignature?.id;
 					if (!msgId) {
 						msgId = `msg_${msgIndex}_${textItemIndex}`;
-					} else if (msgId.length > 64) {
-						msgId = `msg_${shortHash(msgId)}`;
 					}
 					msgId = uniqueResponseItemId(msgId);
 					textItemIndex += 1;
