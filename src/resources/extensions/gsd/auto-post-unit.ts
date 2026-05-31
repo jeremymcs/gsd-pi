@@ -223,13 +223,45 @@ function completeSliceReopenReplanHandoffDetected(
     agentEndMessagesIncludeToolCall(agentEndMessages, "gsd_task_reopen") ||
     agentEndMessagesMentionTool(agentEndMessages, "gsd_task_reopen") ||
     unitActivityMentionsTool(s.basePath, unitType, unitId, "gsd_task_reopen") ||
-    unitActivityMentionsTool(s.canonicalProjectRoot, unitType, unitId, "gsd_task_reopen") ||
+    unitActivityMentionsTool(s.canonicalProjectRoot, unitType, unitId, "gsd_task_reopen")
+  );
+}
+
+function completeSliceReplanSignalDetected(
+  s: AutoSession,
+  agentEndMessages: unknown[] | undefined,
+): boolean {
+  if (s.currentUnit?.type !== "complete-slice") return false;
+  return (
     agentEndMessagesIncludeSuccessfulToolResult(agentEndMessages, "gsd_replan_slice") ||
     agentEndMessagesIncludeToolCall(agentEndMessages, "gsd_replan_slice") ||
     agentEndMessagesMentionTool(agentEndMessages, "gsd_replan_slice") ||
-    unitActivityMentionsTool(s.basePath, unitType, unitId, "gsd_replan_slice") ||
-    unitActivityMentionsTool(s.canonicalProjectRoot, unitType, unitId, "gsd_replan_slice")
+    unitActivityMentionsTool(s.basePath, s.currentUnit.type, s.currentUnit.id, "gsd_replan_slice") ||
+    unitActivityMentionsTool(s.canonicalProjectRoot, s.currentUnit.type, s.currentUnit.id, "gsd_replan_slice")
   );
+}
+
+function completeSliceValidReplanOutcomeDetected(
+  s: AutoSession,
+  agentEndMessages: unknown[] | undefined,
+): boolean {
+  if (s.currentUnit?.type !== "complete-slice") return false;
+  const { milestone: mid, slice: sid } = parseUnitId(s.currentUnit.id);
+  if (!mid || !sid) return false;
+
+  if (!completeSliceReplanSignalDetected(s, agentEndMessages)) return false;
+
+  const replanPath = resolveSliceFile(s.basePath, mid, sid, "REPLAN");
+  const canonicalReplanPath = resolveSliceFile(s.canonicalProjectRoot, mid, sid, "REPLAN");
+  const hasReplanArtifact = (
+    Boolean(replanPath && existsSync(replanPath)) ||
+    Boolean(canonicalReplanPath && existsSync(canonicalReplanPath))
+  );
+  if (!hasReplanArtifact) return false;
+
+  if (!isDbAvailable()) return true;
+  const slice = getSlice(mid, sid);
+  return Boolean(slice && !isClosedStatus(slice.status));
 }
 
 function formatPreExecutionCheckDetail(check: PreExecutionCheckJSON): string {
@@ -1792,7 +1824,29 @@ export async function postUnitPreVerification(pctx: PostUnitContext, opts?: PreV
           "warning",
         );
         return "continue";
-      } else if (!triggerArtifactVerified && !isDbAvailable()) {
+      } else if (
+        !triggerArtifactVerified &&
+        completeSliceValidReplanOutcomeDetected(s, opts?.agentEndMessages)
+      ) {
+        const retryKey = `${s.currentUnit.type}:${s.currentUnit.id}`;
+        s.pendingVerificationRetry = null;
+        s.verificationRetryCount.delete(retryKey);
+        s.verificationRetryFailureHashes.delete(retryKey);
+        debugLog("postUnit", {
+          phase: "artifact-verify-complete-slice-replan-outcome",
+          unitType: s.currentUnit.type,
+          unitId: s.currentUnit.id,
+        });
+        ctx.ui.notify(
+          `complete-slice ${s.currentUnit.id} produced a valid replan outcome; continuing orchestration instead of retrying closeout.`,
+          "warning",
+        );
+        return "continue";
+      } else if (
+        !triggerArtifactVerified &&
+        !isDbAvailable() &&
+        !completeSliceReplanSignalDetected(s, opts?.agentEndMessages)
+      ) {
         debugLog("postUnit", { phase: "artifact-verify-skip-db-unavailable", unitType: s.currentUnit.type, unitId: s.currentUnit.id });
         const dbSkipDiag = diagnoseExpectedArtifact(s.currentUnit.type, s.currentUnit.id, verificationBasePath);
         ctx.ui.notify(
