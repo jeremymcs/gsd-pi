@@ -188,10 +188,12 @@ function isProjectGsd(gsdPath: string): boolean {
 // ─── Repo Identity ──────────────────────────────────────────────────────────
 
 /**
- * Get the git remote URL for "origin", or "" if no remote is configured.
+ * Get the git remote URL for "origin", or:
+ * - "" when git cleanly reports no remote
+ * - null when git command failed (transient/unknown)
  * Uses `git config` rather than `git remote get-url` for broader compat.
  */
-function getRemoteUrl(basePath: string): string {
+function getRemoteUrl(basePath: string): string | null {
   try {
     return execFileSync("git", ["config", "--get", "remote.origin.url"], {
       cwd: basePath,
@@ -199,8 +201,10 @@ function getRemoteUrl(basePath: string): string {
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5_000,
     }).trim();
-  } catch {
-    return "";
+  } catch (error) {
+    // Keep transient git failures distinct from "no remote configured".
+    console.warn(`[GSD] repo-identity: failed to resolve remote.origin.url for ${basePath}:`, error);
+    return null;
   }
 }
 
@@ -300,6 +304,12 @@ export function repoIdentity(basePath: string): string {
     // This makes moves transparent for repos with remotes (#2750).
     return createHash("sha256").update(remoteUrl).digest("hex").slice(0, 12);
   }
+  if (remoteUrl === null) {
+    // Unknown remote status (transient git failure): prefer persisted identity.
+    const markerRoot = resolveGitRoot(basePath);
+    const markerId = readGsdIdMarker(markerRoot);
+    if (markerId) return markerId;
+  }
   // Local-only repo: include git root since there's no remote to anchor identity.
   const root = resolveGitRoot(basePath);
   const input = `\n${root}`;
@@ -315,8 +325,7 @@ export function repoIdentity(basePath: string): string {
  * otherwise `~/.gsd/projects/<hash>`.
  */
 export function externalGsdRoot(basePath: string): string {
-  const base = process.env.GSD_STATE_DIR || gsdHome();
-  return join(base, "projects", repoIdentity(basePath));
+  return resolveExternalPathWithRecovery(basePath).path;
 }
 
 /**
@@ -596,7 +605,7 @@ function ensureGsdSymlinkCore(projectPath: string): { path: string; identity: st
   // Write repo metadata once so cleanup commands can identify this directory later.
   // Skip refresh for external-state worktrees — parent store already has metadata.
   if (!(isGsdWorktreePath(projectPath) && resolveExternalStateProjectGsdFromWorktreePath(projectPath))) {
-    writeRepoMeta(externalPath, getRemoteUrl(projectPath), resolveGitRoot(projectPath));
+    writeRepoMeta(externalPath, getRemoteUrl(projectPath) ?? "", resolveGitRoot(projectPath));
   }
 
   const replaceWithSymlink = (): { path: string; identity: string } => {
