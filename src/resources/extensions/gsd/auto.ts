@@ -2139,6 +2139,7 @@ export function createWiredDispatchAdapter(
         );
         if (alreadyClosedReason) {
           session.pendingOrchestrationDispatch = null;
+          session.pendingVerificationRetry = null;
           return { kind: "skipped", reason: alreadyClosedReason };
         }
         session.pendingOrchestrationDispatch = pendingRetry;
@@ -2180,7 +2181,10 @@ export function createWiredDispatchAdapter(
       }
       const alreadyClosedReason = getAlreadyClosedDispatchReason(action.unitType, action.unitId);
       if (alreadyClosedReason) {
-        if (session) session.pendingOrchestrationDispatch = null;
+        if (session) {
+          session.pendingOrchestrationDispatch = null;
+          session.pendingVerificationRetry = null;
+        }
         return { kind: "skipped", reason: alreadyClosedReason };
       }
       if (session) {
