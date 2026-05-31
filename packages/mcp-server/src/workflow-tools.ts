@@ -1517,6 +1517,11 @@ const milestoneStatusParams = {
 };
 const milestoneStatusSchema = z.object(milestoneStatusParams);
 
+const checkpointDbParams = {
+  projectDir: projectDirParam,
+};
+const checkpointDbSchema = z.object(checkpointDbParams);
+
 const journalQueryParams = {
   projectDir: projectDirParam,
   flowId: z.string().optional().describe("Filter by flow ID"),
@@ -2068,6 +2073,28 @@ export function registerWorkflowTools(realServer: McpToolServer): void {
       return adaptExecutorResult(
         await runSerializedWorkflowOperation(() => executeMilestoneStatus({ milestoneId }, projectDir)),
       );
+    },
+  );
+
+  server.tool(
+    "gsd_checkpoint_db",
+    "Flush the SQLite WAL into gsd.db so git add stages the current GSD database state.",
+    checkpointDbParams,
+    async (args: Record<string, unknown>) => {
+      const { projectDir } = parseWorkflowArgs(checkpointDbSchema, args);
+      await runSerializedWorkflowDbOperation(projectDir, async () => {
+        const { checkpointDatabase } = await importLocalModule<any>(
+          "../../../src/resources/extensions/gsd/gsd-db.js",
+        );
+        checkpointDatabase();
+      });
+      return {
+        content: [{
+          type: "text" as const,
+          text: "WAL checkpoint complete. gsd.db is now up to date and safe to stage with git add.",
+        }],
+        structuredContent: { operation: "checkpoint_db", status: "ok" },
+      };
     },
   );
 
