@@ -97,6 +97,24 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	start(onInput: (data: string) => void, onResize: () => void): void {
+		// Idempotency guard: if start() is called again without an intervening
+		// stop() (e.g. a mis-paired suspend/resume cycle), detach any stale
+		// listeners first so they don't accumulate on the long-lived
+		// process.stdin/stdout and trip MaxListenersExceededWarning. No-op on a
+		// fresh start since all handles are undefined.
+		if (this.stdinDataHandler) {
+			process.stdin.removeListener("data", this.stdinDataHandler);
+			this.stdinDataHandler = undefined;
+		}
+		if (this.resizeHandler) {
+			process.stdout.removeListener("resize", this.resizeHandler);
+			this.resizeHandler = undefined;
+		}
+		if (this.stdinBuffer) {
+			this.stdinBuffer.destroy();
+			this.stdinBuffer = undefined;
+		}
+
 		if (!this.isTTY) {
 			this.inputHandler = onInput;
 			this.resizeHandler = onResize;
