@@ -82,6 +82,7 @@ import {
   getRequiredWorkflowToolsForAutoUnit,
   supportsStructuredQuestions,
 } from "../workflow-mcp.js";
+import { prepareWorkflowMcpForProject } from "../workflow-mcp-auto-prep.js";
 import type { DispatchAction } from "../auto-dispatch.js";
 import { resolveManifest } from "../unit-context-manifest.js";
 import { createWorktreeSafetyModule, type WorktreeSafetyResult } from "../worktree-safety.js";
@@ -2289,6 +2290,20 @@ export async function runUnitPhase(
         pi.setThinkingLevel(prevSessionThinkingLevel);
       }
     }
+
+    const workflowMcpPrep = prepareWorkflowMcpForProject(ctx, s.basePath);
+    if (workflowMcpPrep && workflowMcpPrep.status !== "unchanged") {
+      const pauseMsg =
+        "GSD workflow MCP config has been written. Restart Claude Code (or reload MCP servers), then run /gsd auto to continue.";
+      ctx.ui.notify(pauseMsg, "warning");
+      await deps.pauseAuto(ctx, pi, {
+        category: "provider",
+        isTransient: true,
+        message: pauseMsg,
+      });
+      return { action: "break", reason: "workflow-capability" };
+    }
+
     ctx.ui.notify(compatibilityError, "error");
     await deps.stopAuto(ctx, pi, compatibilityError);
     return { action: "break", reason: "workflow-capability" };
