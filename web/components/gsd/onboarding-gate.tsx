@@ -66,7 +66,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
         <div
           key={i}
           className={cn(
-            "rounded-full transition-all duration-300",
+            "rounded-full transition-[width,background-color] duration-300",
             i === current
               ? "h-1.5 w-5 bg-foreground"
               : i < current

@@ -696,9 +696,9 @@ function TuiTextPrompt({
           onClick={handleSubmit}
           disabled={!value.trim()}
           className={cn(
-            "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all",
+            "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-[background-color,color,box-shadow,transform]",
             value.trim()
-              ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.96] shadow-sm"
               : "bg-muted text-muted-foreground cursor-not-allowed",
           )}
         >
@@ -813,9 +813,9 @@ function TuiPasswordPrompt({
           onClick={handleSubmit}
           disabled={!value}
           className={cn(
-            "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all",
+            "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-[background-color,color,box-shadow,transform]",
             value
-              ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.96] shadow-sm"
               : "bg-muted text-muted-foreground cursor-not-allowed",
           )}
         >
@@ -913,7 +913,7 @@ function InlineThinking({ content, isStreaming }: { content: string; isStreaming
       <button
         onClick={() => setExpanded((e) => !e)}
         className={cn(
-          "group w-full rounded-xl border px-3.5 py-2.5 text-left transition-all",
+          "group w-full rounded-xl border px-3.5 py-2.5 text-left transition-[background-color,border-color,box-shadow]",
           "border-border/50 bg-muted/50 hover:bg-muted/50",
         )}
       >
@@ -1404,9 +1404,9 @@ function ChatInputBar({
               disabled={!connected || !hasContent}
               aria-label="Send"
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-lg transition-all",
+                "flex h-7 w-7 items-center justify-center rounded-lg transition-[background-color,color,box-shadow,transform]",
                 hasContent && connected
-                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95"
+                  ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.96]"
                   : "bg-muted text-muted-foreground cursor-not-allowed",
               )}
             >
@@ -1567,7 +1567,7 @@ function PlaceholderState({
           <div className="mt-4">
             <button
               onClick={onPrimaryAction}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition-[background-color,transform] hover:bg-accent active:scale-[0.96]"
             >
               <primaryAction.icon className="h-4 w-4 text-muted-foreground" />
               {primaryAction.label}
@@ -1715,9 +1715,9 @@ function InlineSelect({
         onClick={handleSubmit}
         disabled={disabled || !canSubmit}
         className={cn(
-          "mt-2 flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-medium transition-all",
+          "mt-2 flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-medium transition-[background-color,color,box-shadow,transform]",
           canSubmit && !disabled
-            ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] shadow-sm"
+            ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.96] shadow-sm"
             : "bg-muted text-muted-foreground cursor-not-allowed",
         )}
       >
@@ -1756,7 +1756,7 @@ function InlineConfirm({
         <button
           onClick={() => { setResolved(true); onSubmit({ value: true }) }}
           disabled={disabled}
-          className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 active:scale-[0.98] shadow-sm transition-all"
+          className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:bg-primary/90 active:scale-[0.96]"
         >
           Confirm
         </button>
@@ -1817,9 +1817,9 @@ function InlineInput({
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
         className={cn(
-          "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all",
+          "flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-[background-color,color,box-shadow,transform]",
           value.trim() && !disabled
-            ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm"
+            ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.96] shadow-sm"
             : "bg-muted text-muted-foreground cursor-not-allowed",
         )}
       >
@@ -1862,7 +1862,7 @@ function InlineEditor({
       <button
         onClick={() => { setSubmitted(true); onSubmit({ value }) }}
         disabled={disabled}
-        className="flex w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 active:scale-[0.98] shadow-sm transition-all"
+        className="flex w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:bg-primary/90 active:scale-[0.96]"
       >
         Submit
       </button>
