@@ -2705,14 +2705,6 @@ export async function buildCompleteSlicePrompt(
   return loadPrompt("complete-slice", {
     workingDirectory: base,
     milestoneId: mid, sliceId: sid, sliceTitle: sTitle,
-    skillActivation: buildSkillActivationBlock({
-      base,
-      milestoneId: mid,
-      sliceId: sid,
-      sliceTitle: sTitle,
-      extraContext: [inlinedContext],
-      unitType: "complete-slice",
-    }),
     slicePath: sliceRel,
     roadmapPath: join(base, roadmapRel),
     inlinedContext,
