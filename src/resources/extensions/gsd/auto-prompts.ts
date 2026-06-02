@@ -2708,6 +2708,7 @@ export async function buildCompleteSlicePrompt(
     skillActivation: buildSkillActivationBlock({
       base,
       milestoneId: mid,
+      milestoneTitle: midTitle,
       sliceId: sid,
       sliceTitle: sTitle,
       extraContext: [inlinedContext],
