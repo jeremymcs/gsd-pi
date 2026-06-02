@@ -648,6 +648,16 @@ export interface WidgetStateAccessors {
   getCurrentDispatchedModelId(): string | null;
 }
 
+function clearAutoOutcomeWidget(ctx: ExtensionContext): void {
+  if (!ctx.hasUI) return;
+  ctx.ui.setWidget("gsd-outcome", undefined);
+}
+
+export function setAutoActiveStatus(ctx: ExtensionContext, status: "auto" | "next"): void {
+  ctx.ui.setStatus("gsd-auto", status);
+  clearAutoOutcomeWidget(ctx);
+}
+
 export function updateProgressWidget(
   ctx: ExtensionContext,
   unitType: string,
@@ -673,7 +683,7 @@ export function updateProgressWidget(
     ctx.ui.setStatus("gsd-step", undefined);
   }
   if (!accessors.isSessionSwitching()) {
-    ctx.ui.setWidget("gsd-outcome", undefined);
+    clearAutoOutcomeWidget(ctx);
   }
 
   const verb = unitVerb(unitType);
@@ -1003,7 +1013,7 @@ export function setCompletionProgressWidget(
 ): void {
   if (!ctx.hasUI) return;
   const widgetKey = "gsd-progress";
-  ctx.ui.setWidget("gsd-outcome", undefined);
+  clearAutoOutcomeWidget(ctx);
 
   if (typeof ctx.ui?.setHeader === "function") {
     ctx.ui.setHeader(() => ({

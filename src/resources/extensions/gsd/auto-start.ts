@@ -60,12 +60,13 @@ import { getAutoWorktreePath, isInAutoWorktree, checkoutBranchWithStashGuard } f
 import { readResourceVersion, cleanStaleRuntimeUnits } from "./auto-worktree.js";
 import { worktreePath as getWorktreeDir, isInsideWorktreesDir } from "./worktree-manager.js";
 import { emitWorktreeOrphaned } from "./worktree-telemetry.js";
+import { queryJournal } from "./journal.js";
 import { initMetrics } from "./metrics.js";
 import { initRoutingHistory } from "./routing-history.js";
 import { restoreHookState, resetHookState } from "./post-unit-hooks.js";
 import { resetProactiveHealing, setLevelChangeCallback } from "./doctor-proactive.js";
 import { snapshotSkills } from "./skill-discovery.js";
-import { isDbAvailable, getMilestone, getAllMilestones, insertMilestone, openDatabase, getDbStatus } from "./gsd-db.js";
+import { isDbAvailable, getMilestone, getAllMilestones, insertMilestone, openDatabase, getDbStatus, updateMilestoneStatus } from "./gsd-db.js";
 import { isClosedStatus } from "./status-guards.js";
 import { classifyMilestoneSummaryContent } from "./milestone-summary-classifier.js";
 import { extractVerdict } from "./verdict-parser.js";
@@ -100,6 +101,7 @@ import {
 } from "./preferences-models.js";
 import type { WorktreeLifecycle } from "./worktree-lifecycle.js";
 import { getSessionModelOverride } from "./session-model-override.js";
+import { setAutoActiveStatus } from "./auto-dashboard.js";
 
 export interface BootstrapDeps {
   shouldUseWorktreeIsolation: (basePath?: string) => boolean;
@@ -187,6 +189,40 @@ export function reconcileProjectMilestonesFromDisk(basePath: string): number {
   }
 }
 
+export function reconcileMergedMilestonesFromJournal(basePath: string): number {
+  if (!isDbAvailable()) return 0;
+
+  const mergedAtByMilestone = new Map<string, string>();
+  for (const entry of queryJournal(basePath, { eventType: "worktree-merged" })) {
+    const data = entry.data ?? {};
+    const milestoneId = typeof data.milestoneId === "string" ? data.milestoneId : null;
+    if (!milestoneId) continue;
+    if (data.conflict === true) continue;
+
+    const endedAt = typeof data.endedAt === "string" ? data.endedAt : entry.ts;
+    const previous = mergedAtByMilestone.get(milestoneId);
+    if (!previous || endedAt > previous) mergedAtByMilestone.set(milestoneId, endedAt);
+  }
+
+  let closed = 0;
+  for (const [milestoneId, completedAt] of mergedAtByMilestone) {
+    const existing = getMilestone(milestoneId);
+    if (!existing) {
+      insertMilestone({ id: milestoneId, title: milestoneId, status: "complete" });
+      updateMilestoneStatus(milestoneId, "complete", completedAt);
+      closed++;
+      continue;
+    }
+    if (!isClosedStatus(existing.status)) {
+      updateMilestoneStatus(milestoneId, "complete", completedAt);
+      closed++;
+    }
+  }
+
+  if (closed > 0) invalidateAllCaches();
+  return closed;
+}
+
 /**
  * Audit for orphaned milestone branches at bootstrap.
  *
@@ -258,6 +294,7 @@ export interface OrphanAuditAction {
   message: string;
   severity: "info" | "warning";
   branch?: string;
+  mainBranch?: string;
   commitsAhead?: number;
   dirtyWorktree?: boolean;
   worktreeDirExists?: boolean;
@@ -274,6 +311,27 @@ export interface OrphanAuditResult {
 
 function isBlockingStrandedWorkAction(action: OrphanAuditAction): boolean {
   return action.kind === "in-progress-stranded-work" && action.blocksAuto;
+}
+
+function strandedWorkEvidence(args: {
+  branch?: string;
+  commitsAhead: number;
+  mainBranch: string;
+  dirtyWorktree: boolean;
+}): string[] {
+  const evidence: string[] = [];
+  if (args.branch && args.commitsAhead > 0) {
+    evidence.push(
+      `branch ${args.branch} has ${args.commitsAhead} commit(s) ahead of ${args.mainBranch}`,
+    );
+  }
+  if (args.dirtyWorktree) {
+    evidence.push("the worktree has uncommitted changes");
+  }
+  if (evidence.length === 0) {
+    evidence.push("physical git evidence exists");
+  }
+  return evidence;
 }
 
 function detectWorktreeEvidence(
@@ -307,18 +365,7 @@ function strandedWorkMessage(args: {
   worktreeDirExists: boolean;
   recoveryMode: StrandedWorkRecoveryMode;
 }): string {
-  const evidence: string[] = [];
-  if (args.branch && args.commitsAhead > 0) {
-    evidence.push(
-      `branch ${args.branch} has ${args.commitsAhead} commit(s) ahead of ${args.mainBranch}`,
-    );
-  }
-  if (args.dirtyWorktree) {
-    evidence.push("the worktree has uncommitted changes");
-  }
-  if (evidence.length === 0) {
-    evidence.push("physical git evidence exists");
-  }
+  const evidence = strandedWorkEvidence(args);
 
   const wtSuffix = args.worktreeDirExists
     ? ` Worktree directory at .gsd/worktrees/${args.milestoneId}/ holds live work.`
@@ -332,6 +379,45 @@ function strandedWorkMessage(args: {
     wtSuffix +
     ` ${recovery} Park or discard explicitly if abandoning.`
   );
+}
+
+function formatStrandedWorkRecoveryMessage(action: OrphanAuditAction): string {
+  const recoveryMode = action.recoveryMode === "worktree"
+    ? "existing worktree"
+    : "milestone branch";
+  const evidence = strandedWorkEvidence({
+    branch: action.branch,
+    commitsAhead: action.commitsAhead ?? 0,
+    mainBranch: action.mainBranch ?? "main",
+    dirtyWorktree: action.dirtyWorktree ?? false,
+  });
+  const wtSuffix = action.worktreeDirExists
+    ? ` Worktree directory at .gsd/worktrees/${action.milestoneId}/ holds live work.`
+    : "";
+  return (
+    `Resuming saved milestone work for ${action.milestoneId}: ${evidence.join("; ")}.` +
+    wtSuffix +
+    ` Adopting the ${recoveryMode} before dispatching new units. Park or discard explicitly if abandoning.`
+  );
+}
+
+function formatStrandedWorkBlockerMessage(
+  action: OrphanAuditAction,
+  activeMilestoneId: string | null,
+): string {
+  const target = action.milestoneId;
+  const mode = action.recoveryMode === "worktree" ? "existing worktree" : "milestone branch";
+  const intro = activeMilestoneId
+    ? `Stranded work for ${target} blocks auto-mode before ${activeMilestoneId}.`
+    : `Stranded work for ${target} blocks auto-mode, but that milestone is not active in project state.`;
+
+  return [
+    intro,
+    "Choose one explicit next step:",
+    `1. Recover it: run \`/gsd auto ${target}\` to adopt the ${mode}.`,
+    `2. Defer it: run \`/gsd park ${target} "reason"\`, then rerun \`/gsd auto\`.`,
+    `3. Abandon it: run \`/gsd rethink\` and explicitly discard ${target}.`,
+  ].join("\n");
 }
 
 export function auditOrphanedMilestoneBranches(
@@ -435,6 +521,7 @@ export function auditOrphanedMilestoneBranches(
         kind: "in-progress-stranded-work",
         milestoneId,
         branch,
+        mainBranch,
         commitsAhead,
         dirtyWorktree: worktreeEvidence.dirty,
         worktreeDirExists: worktreeEvidence.dirExists,
@@ -589,6 +676,7 @@ export function auditOrphanedMilestoneBranches(
       pushAction({
         kind: "in-progress-stranded-work",
         milestoneId: m.id,
+        mainBranch,
         commitsAhead: 0,
         dirtyWorktree: true,
         worktreeDirExists: worktreeEvidence.dirExists,
@@ -1066,6 +1154,7 @@ export async function bootstrapAutoSession(
     await openProjectDbIfPresent(base);
     registerAutoWorkerForSession(base);
     reconcileProjectMilestonesFromDisk(base);
+    reconcileMergedMilestonesFromJournal(base);
 
     // Clean stale runtime unit files for completed milestones (#887).
     // DB-authoritative: when DB is available, require DB status to be closed
@@ -1103,7 +1192,13 @@ export async function bootstrapAutoSession(
       for (const msg of auditResult.recovered) {
         ctx.ui.notify(`Orphan audit: ${msg}`, "info");
       }
+      const deferredStrandedMessages = new Set(
+        auditResult.actions
+          .filter(isBlockingStrandedWorkAction)
+          .map((action) => action.message),
+      );
       for (const msg of auditResult.warnings) {
+        if (deferredStrandedMessages.has(msg)) continue;
         const prefix = msg.startsWith("Stranded work") ? "" : "Orphan audit: ";
         ctx.ui.notify(`${prefix}${msg}`, "warning");
       }
@@ -1177,21 +1272,21 @@ export async function bootstrapAutoSession(
     if (blockingStrandedRecoveryAction) {
       if (!state.activeMilestone) {
         ctx.ui.notify(
-          `Stranded work for ${blockingStrandedRecoveryAction.milestoneId} blocks auto-mode, but that milestone is not active in project state. Park or discard it explicitly before continuing.`,
+          formatStrandedWorkBlockerMessage(blockingStrandedRecoveryAction, null),
           "error",
         );
         return releaseLockAndReturn();
       }
       if (state.activeMilestone.id !== blockingStrandedRecoveryAction.milestoneId) {
         ctx.ui.notify(
-          `Stranded work for ${blockingStrandedRecoveryAction.milestoneId} blocks auto-mode before ${state.activeMilestone.id}. Recover, park, or discard ${blockingStrandedRecoveryAction.milestoneId} explicitly before continuing.`,
+          formatStrandedWorkBlockerMessage(blockingStrandedRecoveryAction, state.activeMilestone.id),
           "error",
         );
         return releaseLockAndReturn();
       }
       strandedRecoveryAction = blockingStrandedRecoveryAction;
       ctx.ui.notify(
-        `Recovering stranded work for ${strandedRecoveryAction.milestoneId} before dispatching new units.`,
+        formatStrandedWorkRecoveryMessage(strandedRecoveryAction),
         "info",
       );
     }
@@ -1663,7 +1758,7 @@ export async function bootstrapAutoSession(
       snapshotSkills();
     }
 
-    ctx.ui.setStatus("gsd-auto", s.stepMode ? "next" : "auto");
+    setAutoActiveStatus(ctx, s.stepMode ? "next" : "auto");
     ctx.ui.setWidget("gsd-health", undefined);
     const modeLabel = s.stepMode ? "Step-mode" : "Auto-mode";
     const pendingCount = (state.registry ?? []).filter(
