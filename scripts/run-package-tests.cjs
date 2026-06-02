@@ -146,6 +146,10 @@ function runPackageScript(command, args, cwd = REPO_ROOT, label = command, timeo
 	return result.status ?? 1
 }
 
+function buildNodeTestArgs(files) {
+	return ['--test-force-exit', '--test', ...files]
+}
+
 function main() {
 	const packages = getLinkablePackages()
 	const summary = []
@@ -217,7 +221,7 @@ function main() {
 		}
 
 		process.stderr.write(`\nRunning ${pkg.packageName} package tests...\n`)
-		if (runCommand(process.execPath, ['--test', ...files], REPO_ROOT, pkg.packageName) !== 0) {
+		if (runCommand(process.execPath, buildNodeTestArgs(files), REPO_ROOT, pkg.packageName) !== 0) {
 			failureCount += 1
 		}
 	}
@@ -233,4 +237,5 @@ module.exports = {
 	findTestFiles,
 	selectPackageTestFiles,
 	findDistTestFiles,
+	buildNodeTestArgs,
 }
