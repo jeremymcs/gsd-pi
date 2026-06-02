@@ -63,7 +63,7 @@ After running all checks, compute the **overall verdict**:
 - `FAIL` — one or more automatable checks failed
 - `PARTIAL` — one or more automatable checks were skipped or returned inconclusive results (not the same as `NEEDS-HUMAN` — use PARTIAL only when the agent itself could not determine pass/fail for a check it was supposed to automate)
 
-Call `gsd_uat_result_save` with `milestoneId: {{milestoneId}}`, `sliceId: {{sliceId}}`, the detected `uatType`, the overall `verdict`, structured `checks`, and the required `presentation` block. The tool validates evidence, computes the assessment path, persists to DB/disk, records attempt history, and saves the aggregate UAT gate. The result content should follow this logical shape:
+Call `gsd_summary_save` with `milestone_id: "{{milestoneId}}"`, `slice_id: "{{sliceId}}"`, `artifact_type: "ASSESSMENT"`, and the full UAT result markdown as `content`. The tool computes the assessment path, persists to DB/disk, and saves the aggregate UAT gate. The content should follow this logical shape:
 
 ```markdown
 ---
@@ -92,6 +92,6 @@ date: <ISO 8601 timestamp>
 
 ---
 
-**You MUST call `gsd_uat_result_save` with the structured UAT result before finishing. Do not use raw `gsd_summary_save` for run-uat.**
+**You MUST call `gsd_summary_save` with `artifact_type: "ASSESSMENT"` and the UAT result content before finishing. Do not write the assessment file directly.**
 
 When done, say: "UAT {{sliceId}} complete."
