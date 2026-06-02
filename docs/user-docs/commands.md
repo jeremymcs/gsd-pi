@@ -100,7 +100,9 @@ After writing the file, GSD attempts to open it in a browser using the local pla
 | `/gsd hooks` | Show configured post-unit and pre-dispatch hooks |
 | `/gsd run-hook` | Manually trigger a specific hook |
 | `/gsd migrate` | Migrate a v1 `.planning` directory to `.gsd` format |
-| `/gsd recover` | Explicitly reset database hierarchy plus persisted validation and quality-gate state, then reconstruct from rendered markdown after database loss or corruption |
+| `/gsd recover --confirm` | Explicitly reset database hierarchy plus persisted validation and quality-gate state, then reconstruct from rendered markdown after database loss or corruption |
+| `/gsd rebuild markdown` | Rebuild markdown projections from the canonical database; stale completion projections are quarantined, not imported |
+| `/gsd rebuild database` | Reserved for DB-native rebuilds; does not import markdown projections |
 | `/gsd language <language\|off\|clear>` | Set or clear the global response language |
 
 ## Milestone Management
@@ -388,7 +390,7 @@ Any `/gsd` subcommand works as a positional argument — `gsd headless status`, 
 
 ### `gsd headless recover` (v2.79)
 
-Non-TTY equivalent of `/gsd recover` — resets the DB hierarchy plus persisted validation and quality-gate state, then reconstructs from rendered markdown. Designed for CI, cron, and any environment where the interactive recover prompt cannot run.
+Non-TTY equivalent of `/gsd recover --confirm` — resets the DB hierarchy plus persisted validation and quality-gate state, then reconstructs from rendered markdown. Designed for CI, cron, and any environment where the interactive recover prompt cannot run.
 
 ```bash
 gsd headless recover

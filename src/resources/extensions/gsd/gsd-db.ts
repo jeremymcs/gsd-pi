@@ -2708,7 +2708,7 @@ export function deleteArtifactByPath(path: string): void {
 
 /**
  * Drop hierarchy rows in dependency order inside a transaction. Used by
- * `gsd recover` to rebuild engine state from markdown.
+ * `gsd recover --confirm` to rebuild engine state from markdown.
  */
 export function clearEngineHierarchy(): void {
   if (!currentDb) throw new GSDError(GSD_STALE_STATE, "gsd-db: No database open");
