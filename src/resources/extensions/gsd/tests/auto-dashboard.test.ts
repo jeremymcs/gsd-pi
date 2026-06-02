@@ -16,6 +16,7 @@ import {
   buildPhaseHandoffOutcome,
   updateProgressWidget,
   setAutoOutcomeWidget,
+  setAutoActiveStatus,
   setCompletionProgressWidget,
   getRoadmapSlicesSync,
   clearSliceProgressCache,
@@ -76,6 +77,26 @@ test("unitVerb returns raw type for unknown types", () => {
 test("unitVerb handles hook types", () => {
   assert.equal(unitVerb("hook/verify-code"), "hook: verify-code");
   assert.equal(unitVerb("hook/"), "hook: ");
+});
+
+test("setAutoActiveStatus clears stale outcome surfaces", () => {
+  const statusCalls: Array<[string, string]> = [];
+  const widgetCalls: Array<[string, unknown]> = [];
+
+  setAutoActiveStatus({
+    hasUI: true,
+    ui: {
+      setStatus: (key: string, value: string) => {
+        statusCalls.push([key, value]);
+      },
+      setWidget: (key: string, value: unknown) => {
+        widgetCalls.push([key, value]);
+      },
+    },
+  } as any, "next");
+
+  assert.deepEqual(statusCalls, [["gsd-auto", "next"]]);
+  assert.deepEqual(widgetCalls, [["gsd-outcome", undefined]]);
 });
 
 // ─── unitPhaseLabel ───────────────────────────────────────────────────────

@@ -331,6 +331,7 @@ function writeMeta(
     stderr_truncated: result.stderr_truncated,
     stdout_path: result.stdout_path,
     stderr_path: result.stderr_path,
+    ...(request.metadata ? { metadata: request.metadata } : {}),
   };
   writeFileSync(path, `${JSON.stringify(meta, null, 2)}\n`);
 }
