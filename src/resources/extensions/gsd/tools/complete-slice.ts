@@ -217,7 +217,7 @@ ${params.narrative}
 
 ## Verification
 
-${params.verification}
+${params.verification ?? ""}
 
 ## Requirements Advanced
 
