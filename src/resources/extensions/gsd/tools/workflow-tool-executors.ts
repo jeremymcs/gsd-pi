@@ -1178,6 +1178,10 @@ function validateUatMode(params: UatResultSaveParams): string | null {
   return null;
 }
 
+function quoteToolNames(toolNames: readonly string[]): string {
+  return toolNames.map((toolName) => `"${toolName}"`).join(", ");
+}
+
 function validateCanonicalPresentation(params: UatResultSaveParams): string | null {
   const aliasHints: Record<string, string> = {
     gsd_save_summary: "gsd_summary_save",
@@ -1185,10 +1189,11 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
     gsd_complete_slice: "gsd_slice_complete",
     gsd_milestone_complete: "gsd_complete_milestone",
   };
+  const errors: string[] = [];
   for (const toolName of params.presentation.presentedTools) {
     const baseName = parseMcpToolName(toolName)?.tool ?? toolName;
     const canonical = aliasHints[baseName];
-    if (canonical) return `presentation tool "${toolName}" uses an alias; use canonical "${canonical}"`;
+    if (canonical) errors.push(`presentation tool "${toolName}" uses an alias; use canonical "${canonical}"`);
   }
 
   const presentedCanonical = new Set(
@@ -1196,10 +1201,13 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
       canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName)
     ),
   );
-  for (const requiredTool of RUN_UAT_WORKFLOW_TOOL_NAMES) {
-    if (!presentedCanonical.has(requiredTool)) {
-      return `presentation is missing required UAT tool "${requiredTool}"`;
-    }
+  const missingRequiredTools = RUN_UAT_WORKFLOW_TOOL_NAMES.filter(
+    (requiredTool) => !presentedCanonical.has(requiredTool),
+  );
+  if (missingRequiredTools.length === 1) {
+    errors.push(`presentation is missing required UAT tool "${missingRequiredTools[0]}"`);
+  } else if (missingRequiredTools.length > 1) {
+    errors.push(`presentation is missing required UAT tools ${quoteToolNames(missingRequiredTools)}`);
   }
 
   const forbiddenCanonical = new Set(
@@ -1207,11 +1215,17 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
       .filter((toolName) => !toolName.includes("*"))
       .map((toolName) => canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName)),
   );
+  const forbiddenPresentedTools: string[] = [];
   for (const toolName of params.presentation.presentedTools) {
     const canonical = canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName);
     if (toolName === "mcp__gsd-workflow__*" || forbiddenCanonical.has(canonical)) {
-      return `presentation includes forbidden run-uat tool "${toolName}"`;
+      forbiddenPresentedTools.push(toolName);
     }
+  }
+  if (forbiddenPresentedTools.length === 1) {
+    errors.push(`presentation includes forbidden run-uat tool "${forbiddenPresentedTools[0]}"`);
+  } else if (forbiddenPresentedTools.length > 1) {
+    errors.push(`presentation includes forbidden run-uat tools ${quoteToolNames(forbiddenPresentedTools)}`);
   }
 
   const blockedCanonical = new Set(
@@ -1219,12 +1233,15 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
       canonicalWorkflowToolName(parseMcpToolName(entry.name)?.tool ?? entry.name)
     ),
   );
-  for (const blockedTool of ["gsd_exec", "gsd_summary_save", "gsd_save_gate_result"]) {
-    if (!blockedCanonical.has(blockedTool)) {
-      return `presentation must record "${blockedTool}" as blocked during run-uat`;
-    }
+  const missingBlockedTools = ["gsd_exec", "gsd_summary_save", "gsd_save_gate_result"].filter(
+    (blockedTool) => !blockedCanonical.has(blockedTool),
+  );
+  if (missingBlockedTools.length === 1) {
+    errors.push(`presentation must record "${missingBlockedTools[0]}" as blocked during run-uat`);
+  } else if (missingBlockedTools.length > 1) {
+    errors.push(`presentation must record ${quoteToolNames(missingBlockedTools)} as blocked during run-uat`);
   }
-  return null;
+  return errors.length > 0 ? errors.join("; ") : null;
 }
 
 function nextUatAttempt(basePath: string, milestoneId: string, sliceId: string): number {

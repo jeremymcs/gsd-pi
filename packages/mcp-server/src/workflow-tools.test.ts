@@ -471,6 +471,29 @@ describe("workflow MCP tools", () => {
       });
       assertToolError(missingPresentedTool, /missing required UAT tool "gsd_journal_query"/);
 
+      const incompletePresentation = await saveTool!.handler({
+        projectDir: base,
+        milestoneId: "M001",
+        sliceId: "S01",
+        uatType: "runtime-executable",
+        verdict: "PASS",
+        checks: [{
+          id: "UAT-01",
+          description: "Runtime check has evidence",
+          mode: "runtime",
+          result: "PASS",
+          evidence: [{ kind: "gsd_uat_exec", ref: evidenceId }],
+        }],
+        presentation: {
+          surface: "mcp",
+          presentedTools: ["gsd_uat_exec", "gsd_uat_result_save"],
+          blockedTools: [],
+        },
+      });
+      const incompletePresentationText = assertToolError(incompletePresentation, /missing required UAT tools/);
+      assert.match(incompletePresentationText, /"gsd_resume", "gsd_milestone_status", "gsd_journal_query"/);
+      assert.match(incompletePresentationText, /"gsd_exec", "gsd_summary_save", "gsd_save_gate_result" as blocked during run-uat/);
+
       const missingEvidence = await saveTool!.handler({
         projectDir: base,
         milestoneId: "M001",

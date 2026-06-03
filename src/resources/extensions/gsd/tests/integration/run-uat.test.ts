@@ -264,8 +264,8 @@ test('(k) run-uat prompt template', () => {
     `prompt contains detected dynamic uatType value "${uatType}" after substitution`,
   );
   assert.ok(
-    promptResult?.includes(`"uatType": "${uatType}"`) ?? false,
-    `prompt contains dynamic uatType call argument value "${uatType}" after substitution`,
+    promptResult?.includes(`uatType: "${uatType}"`) ?? false,
+    `prompt contains dynamic uatType field "${uatType}" after substitution`,
   );
   assert.ok(
     !/\{\{[^}]+\}\}/.test(promptResult ?? ''),
@@ -297,7 +297,7 @@ test('(k2) run-uat prompt references gsd_uat_result_save, not direct write', () 
     'run-uat prompt should reference gsd_uat_result_save tool',
   );
   assert.ok(
-    promptResult.includes('"presentedTools"') && promptResult.includes('"blockedTools"'),
+    promptResult.includes('presentedTools') && promptResult.includes('blockedTools'),
     'run-uat prompt should specify the tool presentation contract',
   );
   assert.ok(
@@ -307,6 +307,10 @@ test('(k2) run-uat prompt references gsd_uat_result_save, not direct write', () 
   assert.ok(
     !promptResult.includes('MUST write'),
     'run-uat prompt should not instruct direct file write in footer',
+  );
+  assert.ok(
+    !promptResult.includes('Call `gsd_summary_save` with `artifact_type: "ASSESSMENT"`'),
+    'run-uat prompt should not instruct the legacy summary-save UAT path',
   );
 });
 
@@ -518,8 +522,8 @@ test('(n) stale replay guard', async () => {
 });
 
 test('(q) verdict in ASSESSMENT file skips UAT dispatch (file-based path)', async () => {
-    // Regression test for #2644: run-uat prompt writes the verdict to
-    // S{sid}-ASSESSMENT.md (via gsd_uat_result_save),
+    // Regression test for #2644: run-uat writes the verdict to
+    // S{sid}-ASSESSMENT.md through the structured UAT save path,
     // but checkNeedsRunUat only checked S{sid}-UAT.md — causing a stuck loop.
     const base = createFixtureBase();
     try {
@@ -715,7 +719,7 @@ test('(u) run-uat prompt promotes artifact-driven browser specs to browser-execu
       const prompt = await buildRunUatPrompt('M001', 'S01', uatRel, uatContent, base);
 
       assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`browser-executable`/);
-      assert.match(prompt, /"uatType": "browser-executable"/);
+      assert.match(prompt, /uatType: "browser-executable"/);
       assert.match(prompt, /use gsd-browser tools/i);
     } finally {
       cleanup(base);
@@ -732,8 +736,8 @@ test('(v) run-uat prompt keeps deferred browser work artifact-driven', async () 
       const prompt = await buildRunUatPrompt('M001', 'S01', uatRel, uatContent, base);
 
       assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`artifact-driven`/);
-      assert.match(prompt, /"uatType": "artifact-driven"/);
-      assert.doesNotMatch(prompt, /"uatType": "browser-executable"/);
+      assert.match(prompt, /uatType: "artifact-driven"/);
+      assert.doesNotMatch(prompt, /uatType: "browser-executable"/);
     } finally {
       cleanup(base);
     }
