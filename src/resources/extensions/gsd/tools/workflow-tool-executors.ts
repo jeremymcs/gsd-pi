@@ -1167,7 +1167,12 @@ function validateUatMode(params: UatResultSaveParams): string | null {
   if (params.uatType === "live-runtime" && !modes.has("runtime") && !modes.has("browser")) {
     return "live-runtime UAT requires runtime or browser evidence";
   }
-  if (params.uatType === "artifact-driven" && hasHuman && params.verdict === "PASS") {
+  if (
+    params.uatType === "artifact-driven" &&
+    hasHuman &&
+    params.verdict === "PASS" &&
+    !params.checks.every((check) => check.result !== "NEEDS-HUMAN" || check.nonAutomatable === true)
+  ) {
     return "artifact-driven UAT cannot PASS with human-only checks";
   }
   return null;

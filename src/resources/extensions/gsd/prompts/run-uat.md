@@ -63,35 +63,51 @@ After running all checks, compute the **overall verdict**:
 - `FAIL` — one or more automatable checks failed
 - `PARTIAL` — one or more automatable checks were skipped or returned inconclusive results (not the same as `NEEDS-HUMAN` — use PARTIAL only when the agent itself could not determine pass/fail for a check it was supposed to automate)
 
-Call `gsd_summary_save` with `milestone_id: "{{milestoneId}}"`, `slice_id: "{{sliceId}}"`, `artifact_type: "ASSESSMENT"`, and the full UAT result markdown as `content`. The tool computes the assessment path, persists to DB/disk, and saves the aggregate UAT gate. The content should follow this logical shape:
+Call `gsd_uat_result_save` exactly once after all checks have been executed. This tool writes the ASSESSMENT artifact, records the UAT attempt, and saves the aggregate UAT gate. Do not call `gsd_summary_save`, `gsd_exec`, or `gsd_save_gate_result` during run-uat; record them as blocked in the `presentation.blockedTools` field.
 
-```markdown
----
-sliceId: {{sliceId}}
-uatType: {{uatType}}
-verdict: PASS | FAIL | PARTIAL
-date: <ISO 8601 timestamp>
----
+Use this argument shape:
 
-# UAT Result — {{sliceId}}
-
-## Checks
-
-| Check | Mode | Result | Notes |
-|-------|------|--------|-------|
-| <check description> | artifact / runtime / human-follow-up | PASS / FAIL / NEEDS-HUMAN | <observed output, evidence, or reason> |
-
-## Overall Verdict
-
-<PASS / FAIL / PARTIAL> — <one sentence summary>
-
-## Notes
-
-<any additional context, errors encountered, screenshots/logs gathered, or manual follow-up still required>
+```json
+{
+  "milestoneId": "{{milestoneId}}",
+  "sliceId": "{{sliceId}}",
+  "uatType": "{{uatType}}",
+  "verdict": "PASS | FAIL | PARTIAL",
+  "checks": [
+    {
+      "id": "UAT-01",
+      "description": "<check description from the UAT file>",
+      "mode": "artifact | runtime | browser | human-follow-up",
+      "result": "PASS | FAIL | NEEDS-HUMAN",
+      "evidence": [
+        { "kind": "gsd_uat_exec", "ref": "<evidence id>", "note": "<short note>" }
+      ],
+      "notes": "<observed output, failure notes, or human instruction>",
+      "nonAutomatable": false
+    }
+  ],
+  "presentation": {
+    "surface": "mcp",
+    "presentedTools": [
+      "gsd_uat_exec",
+      "gsd_uat_result_save",
+      "gsd_resume",
+      "gsd_milestone_status",
+      "gsd_journal_query"
+    ],
+    "blockedTools": [
+      { "name": "gsd_exec", "reason": "forbidden during run-uat" },
+      { "name": "gsd_summary_save", "reason": "forbidden during run-uat" },
+      { "name": "gsd_save_gate_result", "reason": "forbidden during run-uat" }
+    ]
+  },
+  "notes": "<overall verdict rationale>",
+  "attempt": "auto"
+}
 ```
 
 ---
 
-**You MUST call `gsd_summary_save` with `artifact_type: "ASSESSMENT"` and the UAT result content before finishing. Do not write the assessment file directly.**
+**You MUST call `gsd_uat_result_save` before finishing. Do not write the assessment file directly.**
 
 When done, say: "UAT {{sliceId}} complete."

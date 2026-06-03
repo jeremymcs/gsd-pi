@@ -643,6 +643,86 @@ test("executeUatResultSave accepts gsd_uat_exec evidence written in a milestone 
   }
 });
 
+test("executeUatResultSave allows artifact-driven PASS with explicitly non-automatable follow-up checks", async () => {
+  const base = makeTmpBase();
+  const worktree = join(base, ".gsd", "worktrees", "M001");
+  const evidenceId = "uat-artifact-nonautomatable";
+  const worktreeExecDir = join(worktree, ".gsd", "exec");
+  try {
+    openTestDb(base);
+    seedMilestone("M001", "Milestone One");
+    seedSlice("M001", "S01", "complete");
+    mkdirSync(worktreeExecDir, { recursive: true });
+    writeFileSync(
+      join(worktreeExecDir, `${evidenceId}.meta.json`),
+      JSON.stringify({
+        id: evidenceId,
+        metadata: {
+          kind: "uat_exec",
+          milestoneId: "M001",
+          sliceId: "S01",
+          checkId: "UAT-01",
+          intent: "uat-artifact-check",
+        },
+      }),
+      "utf-8",
+    );
+
+    const result = await inProjectDir(worktree, () => executeUatResultSave({
+      milestoneId: "M001",
+      sliceId: "S01",
+      uatType: "artifact-driven",
+      verdict: "PASS",
+      checks: [
+        {
+          id: "UAT-01",
+          description: "Static contract passes",
+          mode: "artifact",
+          result: "PASS",
+          evidence: [{ kind: "gsd_uat_exec", ref: evidenceId }],
+          notes: "Artifact check passed.",
+        },
+        {
+          id: "UAT-02",
+          description: "Browser polish is deferred to the next slice",
+          mode: "human-follow-up",
+          result: "NEEDS-HUMAN",
+          notes: "Out of scope for this artifact-driven UAT.",
+          nonAutomatable: true,
+        },
+      ],
+      presentation: {
+        surface: "mcp",
+        presentedTools: [
+          "gsd_uat_exec",
+          "gsd_uat_result_save",
+          "gsd_resume",
+          "gsd_milestone_status",
+          "gsd_journal_query",
+        ],
+        blockedTools: [
+          { name: "gsd_exec", reason: "forbidden during run-uat" },
+          { name: "gsd_summary_save", reason: "forbidden during run-uat" },
+          { name: "gsd_save_gate_result", reason: "forbidden during run-uat" },
+        ],
+      },
+      notes: "UAT passed; non-automatable browser polish is deferred.",
+    }, worktree));
+
+    assert.equal(result.isError, undefined);
+    assert.equal(result.details.operation, "save_uat_result");
+    assert.equal(result.details.verdict, "PASS");
+    const assessment = readFileSync(
+      join(base, ".gsd", "milestones", "M001", "slices", "S01", "S01-ASSESSMENT.md"),
+      "utf-8",
+    );
+    assert.match(assessment, /Browser polish is deferred/);
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
 test("executeSliceComplete coerces string enrichment entries and writes summary/UAT artifacts", async () => {
   const base = makeTmpBase();
   try {

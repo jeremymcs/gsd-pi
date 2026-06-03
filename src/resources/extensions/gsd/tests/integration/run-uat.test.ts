@@ -264,8 +264,8 @@ test('(k) run-uat prompt template', () => {
     `prompt contains detected dynamic uatType value "${uatType}" after substitution`,
   );
   assert.ok(
-    promptResult?.includes(`uatType: ${uatType}`) ?? false,
-    `prompt contains dynamic uatType frontmatter value "${uatType}" after substitution`,
+    promptResult?.includes(`"uatType": "${uatType}"`) ?? false,
+    `prompt contains dynamic uatType call argument value "${uatType}" after substitution`,
   );
   assert.ok(
     !/\{\{[^}]+\}\}/.test(promptResult ?? ''),
@@ -281,7 +281,7 @@ test('(k) run-uat prompt template', () => {
   );
 });
 
-test('(k2) run-uat prompt references gsd_summary_save, not direct write', () => {
+test('(k2) run-uat prompt references gsd_uat_result_save, not direct write', () => {
   const promptResult = loadPromptFromWorktree('run-uat', {
     workingDirectory: '/tmp/test-project',
     milestoneId: 'M001',
@@ -293,12 +293,16 @@ test('(k2) run-uat prompt references gsd_summary_save, not direct write', () => 
   });
 
   assert.ok(
-    promptResult.includes('gsd_summary_save'),
-    'run-uat prompt should reference gsd_summary_save tool',
+    promptResult.includes('gsd_uat_result_save'),
+    'run-uat prompt should reference gsd_uat_result_save tool',
   );
   assert.ok(
-    promptResult.includes('artifact_type: "ASSESSMENT"'),
-    'run-uat prompt should specify ASSESSMENT artifact type',
+    promptResult.includes('"presentedTools"') && promptResult.includes('"blockedTools"'),
+    'run-uat prompt should specify the tool presentation contract',
+  );
+  assert.ok(
+    !promptResult.includes('Call `gsd_summary_save`'),
+    'run-uat prompt should not instruct direct summary-save UAT persistence',
   );
   assert.ok(
     !promptResult.includes('MUST write'),
@@ -515,7 +519,7 @@ test('(n) stale replay guard', async () => {
 
 test('(q) verdict in ASSESSMENT file skips UAT dispatch (file-based path)', async () => {
     // Regression test for #2644: run-uat prompt writes the verdict to
-    // S{sid}-ASSESSMENT.md (via gsd_summary_save artifact_type:"ASSESSMENT"),
+    // S{sid}-ASSESSMENT.md (via gsd_uat_result_save),
     // but checkNeedsRunUat only checked S{sid}-UAT.md — causing a stuck loop.
     const base = createFixtureBase();
     try {
@@ -711,7 +715,7 @@ test('(u) run-uat prompt promotes artifact-driven browser specs to browser-execu
       const prompt = await buildRunUatPrompt('M001', 'S01', uatRel, uatContent, base);
 
       assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`browser-executable`/);
-      assert.match(prompt, /uatType: browser-executable/);
+      assert.match(prompt, /"uatType": "browser-executable"/);
       assert.match(prompt, /use gsd-browser tools/i);
     } finally {
       cleanup(base);
@@ -728,8 +732,8 @@ test('(v) run-uat prompt keeps deferred browser work artifact-driven', async () 
       const prompt = await buildRunUatPrompt('M001', 'S01', uatRel, uatContent, base);
 
       assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`artifact-driven`/);
-      assert.match(prompt, /uatType: artifact-driven/);
-      assert.doesNotMatch(prompt, /uatType: browser-executable/);
+      assert.match(prompt, /"uatType": "artifact-driven"/);
+      assert.doesNotMatch(prompt, /"uatType": "browser-executable"/);
     } finally {
       cleanup(base);
     }

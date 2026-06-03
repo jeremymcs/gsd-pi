@@ -25,11 +25,15 @@ test("reactive-execute prompt keeps task summaries with subagents and avoids bat
 test("run-uat prompt branches on dynamic UAT mode and supports runtime evidence", () => {
   const prompt = readPrompt("run-uat");
   assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`\{\{uatType\}\}`/);
-  assert.match(prompt, /uatType:\s*\{\{uatType\}\}/);
+  assert.match(prompt, /"uatType":\s*"\{\{uatType\}\}"/);
+  assert.match(prompt, /gsd_uat_result_save/);
+  assert.match(prompt, /presentedTools/);
+  assert.match(prompt, /blockedTools/);
   assert.match(prompt, /live-runtime/);
   assert.match(prompt, /browser\/runtime\/network/i);
   assert.match(prompt, /NEEDS-HUMAN/);
   assert.doesNotMatch(prompt, /uatType:\s*artifact-driven/);
+  assert.doesNotMatch(prompt, /Call `gsd_summary_save`/);
 });
 
 test("run-uat prompt lists canonical gsd_uat_exec intent values", () => {
