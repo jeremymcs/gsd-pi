@@ -13,10 +13,10 @@ test("dispatchNewMilestoneDiscuss uses discuss.md only on greenfield projects", 
 
   assert.match(fnBody, /findMilestoneIds\(basePath\)\.length === 0/);
   assert.match(fnBody, /prepareAndBuildDiscussPrompt/);
-  assert.match(fnBody, /loadPrompt\("guided-discuss-milestone"/);
+  assert.match(fnBody, /buildDiscussMilestonePrompt/);
   assert.match(
     fnBody,
-    /if \(isGreenfield\)[\s\S]*prepareAndBuildDiscussPrompt[\s\S]*loadPrompt\("guided-discuss-milestone"/,
+    /if \(isGreenfield\)[\s\S]*prepareAndBuildDiscussPrompt[\s\S]*buildDiscussMilestonePrompt/,
     "greenfield branch must precede guided-discuss-milestone branch",
   );
 });
