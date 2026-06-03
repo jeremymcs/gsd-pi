@@ -1569,10 +1569,9 @@ export async function buildDiscussMilestonePrompt(
     });
   }
 
-  const discussTemplates = [
-    await buildDiscussMilestoneInlinedContext(mid, base),
-    contextTemplate,
-  ].join("\n\n---\n\n");
+  const rawInlinedContext = await buildDiscussMilestoneInlinedContext(mid, base);
+  const cappedInlinedContext = capPreamble(rawInlinedContext);
+  const discussTemplates = [cappedInlinedContext, contextTemplate].join("\n\n---\n\n");
 
   const basePrompt = loadPrompt("guided-discuss-milestone", {
     workingDirectory: base,

@@ -1372,6 +1372,7 @@ async function buildDiscussPreparationContext(
   ctx: ExtensionCommandContext,
   basePath: string,
   mode: "greenfield" | "milestone" = "greenfield",
+  skipPriorContext = false,
 ): Promise<string> {
   const prefs = loadEffectiveGSDPreferences()?.preferences ?? {};
   if (prefs.discuss_preparation === false) return "";
@@ -1389,7 +1390,7 @@ async function buildDiscussPreparationContext(
     const priorContextBrief = prepResult.priorContextBrief || formatPriorContextBrief(prepResult.priorContext);
     const parts: string[] = [];
     if (codebaseBrief) parts.push(`### Codebase Brief\n\n${codebaseBrief}`);
-    if (priorContextBrief) parts.push(`### Prior Context Brief\n\n${priorContextBrief}`);
+    if (priorContextBrief && !skipPriorContext) parts.push(`### Prior Context Brief\n\n${priorContextBrief}`);
     if (parts.length === 0) return "";
 
     const guidance = mode === "milestone"
@@ -1442,7 +1443,7 @@ async function dispatchNewMilestoneDiscuss(
     return;
   }
 
-  const preparationContext = await buildDiscussPreparationContext(ctx, basePath, "milestone");
+  const preparationContext = await buildDiscussPreparationContext(ctx, basePath, "milestone", true);
   const structuredQuestionsAvailable = getStructuredQuestionsAvailability(pi, ctx);
   let prompt = await buildDiscussMilestonePrompt(
     nextId,
