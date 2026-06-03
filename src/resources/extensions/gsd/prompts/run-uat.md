@@ -63,51 +63,53 @@ After running all checks, compute the **overall verdict**:
 - `FAIL` — one or more automatable checks failed
 - `PARTIAL` — one or more automatable checks were skipped or returned inconclusive results (not the same as `NEEDS-HUMAN` — use PARTIAL only when the agent itself could not determine pass/fail for a check it was supposed to automate)
 
-Call `gsd_uat_result_save` exactly once after all checks have been executed. This tool writes the ASSESSMENT artifact, records the UAT attempt, and saves the aggregate UAT gate. Do not call `gsd_summary_save`, `gsd_exec`, or `gsd_save_gate_result` during run-uat; record them as blocked in the `presentation.blockedTools` field.
+Call `gsd_uat_result_save` once after all checks are complete. The tool computes the assessment path, persists to DB/disk, saves attempt history, and saves the aggregate UAT gate.
 
-Use this argument shape:
+Pass these top-level fields:
 
-```json
-{
-  "milestoneId": "{{milestoneId}}",
-  "sliceId": "{{sliceId}}",
-  "uatType": "{{uatType}}",
-  "verdict": "PASS | FAIL | PARTIAL",
-  "checks": [
-    {
-      "id": "UAT-01",
-      "description": "<check description from the UAT file>",
-      "mode": "artifact | runtime | browser | human-follow-up",
-      "result": "PASS | FAIL | NEEDS-HUMAN",
-      "evidence": [
-        { "kind": "gsd_uat_exec", "ref": "<evidence id>", "note": "<short note>" }
-      ],
-      "notes": "<observed output, failure notes, or human instruction>",
-      "nonAutomatable": false
-    }
+```ts
+milestoneId: "{{milestoneId}}",
+sliceId: "{{sliceId}}",
+uatType: "{{uatType}}",
+verdict: "PASS" | "FAIL" | "PARTIAL",
+notes: "<one sentence overall verdict rationale>",
+```
+
+Use this exact `presentation` shape in the save call so the audit can verify the run-uat tool surface without retrying missing fields one by one:
+
+```ts
+presentation: {
+  surface: "mcp",
+  presentedTools: [
+    "gsd_uat_exec",
+    "gsd_uat_result_save",
+    "gsd_resume",
+    "gsd_milestone_status",
+    "gsd_journal_query",
   ],
-  "presentation": {
-    "surface": "mcp",
-    "presentedTools": [
-      "gsd_uat_exec",
-      "gsd_uat_result_save",
-      "gsd_resume",
-      "gsd_milestone_status",
-      "gsd_journal_query"
-    ],
-    "blockedTools": [
-      { "name": "gsd_exec", "reason": "forbidden during run-uat" },
-      { "name": "gsd_summary_save", "reason": "forbidden during run-uat" },
-      { "name": "gsd_save_gate_result", "reason": "forbidden during run-uat" }
-    ]
-  },
-  "notes": "<overall verdict rationale>",
-  "attempt": "auto"
+  blockedTools: [
+    { name: "gsd_exec", reason: "forbidden during run-uat" },
+    { name: "gsd_summary_save", reason: "forbidden during run-uat" },
+    { name: "gsd_save_gate_result", reason: "forbidden during run-uat" },
+  ],
 }
+```
+
+Pass `checks` with this logical shape:
+
+```ts
+checks: [{
+  id: "<stable check id>",
+  description: "<check description from the UAT file>",
+  mode: "artifact" | "runtime" | "browser" | "human-follow-up",
+  result: "PASS" | "FAIL" | "NEEDS-HUMAN",
+  evidence: [{ kind: "gsd_uat_exec", ref: "<evidence id>" }],
+  notes: "<observed output, evidence, reason, or manual follow-up>",
+}]
 ```
 
 ---
 
-**You MUST call `gsd_uat_result_save` before finishing. Do not write the assessment file directly.**
+**You MUST call `gsd_uat_result_save` before finishing. Do not write the assessment file directly, and do not call `gsd_summary_save` as a substitute.**
 
 When done, say: "UAT {{sliceId}} complete."

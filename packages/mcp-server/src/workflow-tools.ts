@@ -1358,7 +1358,7 @@ const validateMilestoneParams = {
   sliceDeliveryAudit: z.string().describe("Markdown auditing each slice's claimed vs delivered output"),
   crossSliceIntegration: z.string().describe("Markdown describing cross-slice issues or closure"),
   requirementCoverage: z.string().describe("Markdown describing requirement coverage and gaps"),
-  verificationClasses: z.string().optional(),
+  verificationClasses: z.string().optional().describe("Complete markdown table with one canonical row for every applicable planned verification class: Contract, Integration, Operational, and UAT"),
   verdictRationale: z.string().describe("Why this verdict was chosen"),
   remediationPlan: z.string().optional(),
 };

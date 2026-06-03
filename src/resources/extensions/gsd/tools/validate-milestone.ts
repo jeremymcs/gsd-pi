@@ -92,6 +92,12 @@ async function collectPersistedBrowserEvidence(basePath: string, milestoneId: st
   return chunks.join("\n\n");
 }
 
+function hasRuntimeExecutableUatEvidenceText(text: string): boolean {
+  if (!/\buatType:\s*runtime-executable\b/i.test(text)) return false;
+  if (!/\bverdict:\s*PASS\b/i.test(text)) return false;
+  return /^\|\s*[^|\n]+\s*\|\s*runtime\s*\|\s*PASS\s*\|[^|\n]*\bgsd_uat_exec\b/mi.test(text);
+}
+
 async function browserEvidenceGateRequiresAttention(
   params: ValidateMilestoneParams,
   basePath: string,
@@ -115,6 +121,8 @@ async function browserEvidenceGateRequiresAttention(
   if (!hasBrowserRequiredText(requirementText)) return false;
 
   const persistedEvidence = await collectPersistedBrowserEvidence(basePath, params.milestoneId);
+  if (hasRuntimeExecutableUatEvidenceText(persistedEvidence)) return false;
+
   const validationEvidence = compactTextParts([
     params.successCriteriaChecklist,
     params.verificationClasses,
@@ -184,12 +192,20 @@ export async function handleValidateMilestone(
   const requiredClasses = getRequiredVerificationClasses(params.milestoneId);
   if (requiredClasses.length > 0) {
     const verificationClasses = params.verificationClasses ?? "";
-    const missingClass = requiredClasses.find(
+    const missingClasses = requiredClasses.filter(
       (className) => !new RegExp(`\\b${className}\\b`, "i").test(verificationClasses),
     );
-    if (missingClass) {
+    if (missingClasses.length === 1) {
+      const missingClass = missingClasses[0];
       return {
         error: `verificationClasses must include canonical row "${missingClass}" because this milestone planned ${missingClass.toLowerCase()} verification`,
+      };
+    }
+    if (missingClasses.length > 1) {
+      const quotedClasses = missingClasses.map((className) => `"${className}"`).join(", ");
+      const plannedClasses = missingClasses.map((className) => className.toLowerCase()).join(", ");
+      return {
+        error: `verificationClasses must include canonical rows ${quotedClasses} because this milestone planned ${plannedClasses} verification`,
       };
     }
   }

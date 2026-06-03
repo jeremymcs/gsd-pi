@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.ts";
 
 const promptsDir = join(process.cwd(), "src/resources/extensions/gsd/prompts");
 const templatesDir = join(process.cwd(), "src/resources/extensions/gsd/templates");
@@ -25,7 +26,7 @@ test("reactive-execute prompt keeps task summaries with subagents and avoids bat
 test("run-uat prompt branches on dynamic UAT mode and supports runtime evidence", () => {
   const prompt = readPrompt("run-uat");
   assert.match(prompt, /\*\*Detected UAT mode:\*\*\s*`\{\{uatType\}\}`/);
-  assert.match(prompt, /"uatType":\s*"\{\{uatType\}\}"/);
+  assert.match(prompt, /uatType:\s*"\{\{uatType\}\}"/);
   assert.match(prompt, /gsd_uat_result_save/);
   assert.match(prompt, /presentedTools/);
   assert.match(prompt, /blockedTools/);
@@ -44,6 +45,22 @@ test("run-uat prompt lists canonical gsd_uat_exec intent values", () => {
   assert.match(prompt, /`uat-service-start`/);
   assert.match(prompt, /`uat-log-inspection`/);
   assert.match(prompt, /do not use `artifact`, `runtime`, or `human-follow-up` as `intent`/i);
+});
+
+test("run-uat prompt gives the complete UAT result-save presentation contract", () => {
+  const prompt = readPrompt("run-uat");
+  assert.match(prompt, /Call `gsd_uat_result_save` once after all checks are complete/);
+  assert.doesNotMatch(prompt, /Call `gsd_summary_save` with `artifact_type: "ASSESSMENT"`/);
+
+  for (const toolName of RUN_UAT_WORKFLOW_TOOL_NAMES) {
+    assert.ok(prompt.includes(`"${toolName}"`), `prompt should include required presented tool ${toolName}`);
+  }
+
+  for (const toolName of ["gsd_exec", "gsd_summary_save", "gsd_save_gate_result"] as const) {
+    assert.ok(prompt.includes(`name: "${toolName}"`), `prompt should include blocked tool ${toolName}`);
+  }
+
+  assert.ok(prompt.includes("forbidden during run-uat"), "prompt should explain blocked run-uat tools");
 });
 
 test("workflow-start prompt defaults to autonomy instead of per-phase confirmation", () => {

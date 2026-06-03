@@ -2986,13 +2986,23 @@ export async function buildValidateMilestonePrompt(
     if (isDbAvailable()) {
       const milestone = getMilestone(mid);
       if (milestone) {
+        const escapeCell = (value: string) =>
+          value.replace(/[\\|]/g, (char) => `\\${char}`).replace(/\r?\n/g, " ");
         const classes: string[] = [];
-        if (milestone.verification_contract) classes.push(`- **Contract:** ${milestone.verification_contract}`);
-        if (milestone.verification_integration) classes.push(`- **Integration:** ${milestone.verification_integration}`);
-        if (milestone.verification_operational) classes.push(`- **Operational:** ${milestone.verification_operational}`);
-        if (milestone.verification_uat) classes.push(`- **UAT:** ${milestone.verification_uat}`);
+        if (milestone.verification_contract) classes.push(`| Contract | ${escapeCell(milestone.verification_contract)} |`);
+        if (milestone.verification_integration) classes.push(`| Integration | ${escapeCell(milestone.verification_integration)} |`);
+        if (milestone.verification_operational) classes.push(`| Operational | ${escapeCell(milestone.verification_operational)} |`);
+        if (milestone.verification_uat) classes.push(`| UAT | ${escapeCell(milestone.verification_uat)} |`);
         if (classes.length > 0) {
-          const verificationClasses = `### Verification Classes (from planning)\n\nThese verification tiers were defined during milestone planning. Each non-empty class must be checked for evidence during validation.\n\n${classes.join("\n")}`;
+          const verificationClasses = [
+            "### Verification Classes (from planning)",
+            "",
+            "These verification tiers were defined during milestone planning. Every row in this table must appear in `verificationClasses` with the same canonical class name.",
+            "",
+            "| Class | Planned Check |",
+            "| --- | --- |",
+            ...classes,
+          ].join("\n");
           inlined.push(verificationClasses);
           trackPromptContext(contextTelemetry, "verification-classes", "inline", verificationClasses);
         }
