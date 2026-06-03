@@ -30,6 +30,9 @@ export function hasBrowserRequiredText(text: string): boolean {
         inNonRequirementSection = NON_REQUIREMENT_BROWSER_HEADING_RE.test(title);
         nonRequirementDepth = inNonRequirementSection ? depth : 0;
       }
+      // Check the heading title itself — section state is already updated, so
+      // we correctly skip headings that opened a non-requirement zone.
+      if (!inNonRequirementSection && BROWSER_REQUIREMENT_RE.test(title)) return true;
       continue;
     }
     if (inNonRequirementSection || NON_REQUIREMENT_BROWSER_LINE_RE.test(line)) continue;

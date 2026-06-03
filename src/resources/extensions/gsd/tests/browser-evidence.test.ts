@@ -101,6 +101,21 @@ describe('hasBrowserRequiredText', () => {
     );
   });
 
+  test('detects browser requirement written only in a heading', () => {
+    // Regression: the line-by-line scan previously skip-continued past headings,
+    // missing browser obligations expressed only in heading text.
+    const text = '## Open browser session at localhost\n';
+    assert.ok(hasBrowserRequiredText(text), 'browser requirement in heading text must be detected');
+  });
+
+  test('heading that opens a non-requirement section is not itself detected as a requirement', () => {
+    const text = '## Not Proven\n\n- Some note.\n';
+    assert.ok(
+      !hasBrowserRequiredText(text),
+      'a non-requirement section heading should not trigger browser detection',
+    );
+  });
+
   test('returns false for empty text', () => {
     assert.ok(!hasBrowserRequiredText(''), 'empty string returns false');
   });
