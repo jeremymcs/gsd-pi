@@ -542,8 +542,26 @@ function handlePausedSessionResumeRecovery(
 ): { skippedReplay: boolean } {
   if (!state.pausedSessionFile) return { skippedReplay: false };
 
-  const pausedRecoveryUnitType = state.currentUnit?.type ?? state.pausedUnitType ?? "unknown";
-  const pausedRecoveryUnitId = state.currentUnit?.id ?? state.pausedUnitId ?? "unknown";
+  const pausedRecoveryUnitType = state.currentUnit?.type ?? state.pausedUnitType ?? null;
+  const pausedRecoveryUnitId = state.currentUnit?.id ?? state.pausedUnitId ?? null;
+
+  // When the paused-session metadata never captured the unit identity (the
+  // pause happened between units, or the worker died before currentUnit was
+  // set), we have nothing to verify against and nothing correct to target. A
+  // replay synthesized with an "unknown" unit re-injects an unbounded,
+  // mis-identified tool-call blob into the fresh resume context — exactly the
+  // thrash that turns one stuck unit into several. Disk state has already been
+  // rebuilt (rebuildState + doctor) before this runs, so skip the replay and
+  // let the normal dispatcher recompute the next unit from disk.
+  if (!pausedRecoveryUnitType || !pausedRecoveryUnitId) {
+    state.pausedSessionFile = null;
+    state.pausedUnitType = null;
+    state.pausedUnitId = null;
+    state.pendingCrashRecovery = null;
+    notify("Paused session had no recorded unit identity. Skipping tool-call replay and resuming from disk state.");
+    return { skippedReplay: true };
+  }
+
   const completedPausedUnit = verifyExpectedArtifact(
     pausedRecoveryUnitType,
     pausedRecoveryUnitId,

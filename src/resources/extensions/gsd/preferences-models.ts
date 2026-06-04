@@ -372,6 +372,7 @@ export function resolveAutoSupervisorConfig(): AutoSupervisorConfig {
     soft_timeout_minutes: configured.soft_timeout_minutes ?? 20,
     idle_timeout_minutes: configured.idle_timeout_minutes ?? 10,
     hard_timeout_minutes: configured.hard_timeout_minutes ?? 30,
+    stalled_tool_timeout_minutes: configured.stalled_tool_timeout_minutes ?? 5,
     ...(configured.model ? { model: configured.model } : {}),
   };
 }
