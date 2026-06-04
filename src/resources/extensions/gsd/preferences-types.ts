@@ -256,6 +256,14 @@ export interface AutoSupervisorConfig {
   soft_timeout_minutes?: number;
   idle_timeout_minutes?: number;
   hard_timeout_minutes?: number;
+  /**
+   * Dedicated budget for a single in-flight tool call before it is treated as
+   * hung. Distinct from `idle_timeout_minutes`: a genuinely stuck tool should
+   * be recovered in minutes rather than waiting out the full idle window. A
+   * long-but-progressing session is not idle, so it must not share the hung-tool
+   * threshold.
+   */
+  stalled_tool_timeout_minutes?: number;
 }
 
 export interface RemoteQuestionsConfig {

@@ -139,6 +139,7 @@ function collectConfigSections(): ConfigSection[] {
     if (sup.model) supRows.push({ label: "Model", value: sup.model });
     supRows.push({ label: "Soft timeout", value: `${sup.soft_timeout_minutes}m` });
     supRows.push({ label: "Idle timeout", value: `${sup.idle_timeout_minutes}m` });
+    supRows.push({ label: "Stalled tool timeout", value: `${sup.stalled_tool_timeout_minutes}m` });
     supRows.push({ label: "Hard timeout", value: `${sup.hard_timeout_minutes}m` });
     sections.push({ title: "Auto Supervisor", rows: supRows });
   }
