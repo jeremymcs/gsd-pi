@@ -1050,15 +1050,13 @@ function normalizeUatResultSaveParams(params: UatResultSaveParams): UatResultSav
     return normalized;
   }
 
-  if (providedPresentation.toolPresentationPlanId === RUN_UAT_TOOL_PRESENTATION_PLAN_ID) {
-    normalized.presentation = {
-      ...providedPresentation,
-      surface: providedPresentation.surface ?? canonicalPresentation.surface,
-      presentedTools: mergePresentedTools(providedPresentation.presentedTools, canonicalPresentation.presentedTools),
-      blockedTools: mergeBlockedTools(providedPresentation.blockedTools, canonicalPresentation.blockedTools),
-      toolPresentationPlanId: RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
-    } as UatPresentationInput;
-  }
+  normalized.presentation = {
+    ...providedPresentation,
+    surface: providedPresentation.surface ?? canonicalPresentation.surface,
+    presentedTools: mergePresentedTools(providedPresentation.presentedTools, canonicalPresentation.presentedTools),
+    blockedTools: mergeBlockedTools(providedPresentation.blockedTools, canonicalPresentation.blockedTools),
+    toolPresentationPlanId: RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+  } as UatPresentationInput;
 
   return normalized;
 }

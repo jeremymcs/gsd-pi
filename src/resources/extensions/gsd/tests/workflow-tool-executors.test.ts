@@ -705,6 +705,78 @@ test("executeUatResultSave supplies canonical presentation and normalizes verdic
   }
 });
 
+test("executeUatResultSave merges canonical plan ID and read-only tools when presentation lacks plan ID", async () => {
+  const base = makeTmpBase();
+  const worktree = join(base, ".gsd", "worktrees", "M001");
+  const worktreeExecDir = join(worktree, ".gsd", "exec");
+  const evidenceId = "uat-no-plan-id-evidence";
+  try {
+    openTestDb(base);
+    seedMilestone("M001", "Milestone One");
+    seedSlice("M001", "S05", "complete");
+    mkdirSync(worktreeExecDir, { recursive: true });
+    writeFileSync(
+      join(worktreeExecDir, `${evidenceId}.meta.json`),
+      JSON.stringify({
+        id: evidenceId,
+        metadata: {
+          kind: "uat_exec",
+          milestoneId: "M001",
+          sliceId: "S05",
+          checkId: "UAT-01",
+          intent: "uat-artifact-check",
+        },
+      }),
+      "utf-8",
+    );
+
+    const result = await inProjectDir(worktree, () => executeUatResultSave({
+      milestoneId: "M001",
+      sliceId: "S05",
+      uatType: "artifact-driven",
+      verdict: "PASS",
+      checks: [{
+        id: "UAT-01",
+        description: "Presentation plan ID absent from provider call",
+        mode: "artifact",
+        result: "PASS",
+        evidence: [{ kind: "gsd_uat_exec", ref: evidenceId }],
+        notes: "Canonical merge should apply even when toolPresentationPlanId is absent.",
+      }],
+      presentation: {
+        surface: "mcp",
+        presentedTools: [
+          "gsd_uat_exec",
+          "gsd_uat_result_save",
+          "gsd_resume",
+          "gsd_milestone_status",
+          "gsd_journal_query",
+        ],
+        blockedTools: [
+          { name: "gsd_exec", reason: "forbidden during run-uat" },
+          { name: "gsd_summary_save", reason: "forbidden during run-uat" },
+          { name: "gsd_save_gate_result", reason: "forbidden during run-uat" },
+        ],
+      },
+      notes: "Provider omitted toolPresentationPlanId; executor must canonicalize.",
+    } as unknown as Parameters<typeof executeUatResultSave>[0], worktree));
+
+    assert.equal(result.isError, undefined);
+    assert.equal(result.details.verdict, "PASS");
+
+    const attempt = JSON.parse(readFileSync(
+      join(base, ".gsd", "uat", "M001", "S05", "attempt-1.json"),
+      "utf-8",
+    )) as { presentation?: { toolPresentationPlanId?: string; presentedTools?: string[] } };
+    assert.equal(attempt.presentation?.toolPresentationPlanId, "run-uat/default-v1");
+    assert.ok(attempt.presentation?.presentedTools?.includes("read"), "read-only tool must be merged in");
+    assert.ok(attempt.presentation?.presentedTools?.includes("gsd_uat_result_save"));
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
 test("executeUatResultSave rejects saved UAT without fresh UAT-owned evidence", async () => {
   const base = makeTmpBase();
   const worktree = join(base, ".gsd", "worktrees", "M001");
