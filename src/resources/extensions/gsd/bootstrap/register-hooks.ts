@@ -1287,51 +1287,55 @@ export function registerHooks(
     const payload = event.payload as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object") return;
 
-    // ── Observation Masking ─────────────────────────────────────────────
-    // Replace old tool results with placeholders to reduce context bloat.
-    // Only active during auto-mode when context_management.observation_masking is enabled.
-    if (isAutoActive()) {
-      try {
-        const { loadEffectiveGSDPreferences } = await import("../preferences.js");
-        const prefs = loadEffectiveGSDPreferences();
-        const cmConfig = prefs?.preferences.context_management;
+    // ── Context Management ──────────────────────────────────────────────
+    // Load preferences once for both masking and truncation.
+    let cmConfig: import("../preferences-types.js").ContextManagementConfig | undefined;
+    try {
+      const { loadEffectiveGSDPreferences } = await import("../preferences.js");
+      const prefs = loadEffectiveGSDPreferences();
+      cmConfig = prefs?.preferences.context_management;
+    } catch { /* non-fatal — continue without config */ }
 
-        // Observation masking: replace old tool results with placeholders
-        if (cmConfig?.observation_masking !== false) {
-          const keepTurns = cmConfig?.observation_mask_turns ?? 8;
-          const { createObservationMask } = await import("../context-masker.js");
-          const mask = createObservationMask(keepTurns);
-          const messages = payload.messages;
-          if (Array.isArray(messages)) {
-            payload.messages = mask(messages);
-          }
-        }
-
-        // Tool result truncation: cap individual tool result content length.
-        // In pi-ai format, toolResult messages have role: "toolResult" and content: TextContent[].
-        // Creates new objects to avoid mutating shared conversation state.
-        const maxChars = cmConfig?.tool_result_max_chars ?? 800;
-        const msgs = payload.messages;
-        if (Array.isArray(msgs)) {
-          payload.messages = msgs.map((msg: Record<string, unknown>) => {
-            // Match toolResult messages (role: "toolResult", content is array of content blocks)
-            if (msg?.role === "toolResult" && Array.isArray(msg.content)) {
-              const blocks = msg.content as Array<Record<string, unknown>>;
-              const totalLen = blocks.reduce((sum: number, b) => sum + (typeof b.text === "string" ? b.text.length : 0), 0);
-              if (totalLen > maxChars) {
-                const truncated = blocks.map(b => {
-                  if (typeof b.text === "string" && b.text.length > maxChars) {
-                    return { ...b, text: b.text.slice(0, maxChars) + "\n…[truncated]" };
-                  }
-                  return b;
-                });
-                return { ...msg, content: truncated };
-              }
+    // Tool result truncation: cap individual tool result content length.
+    // Applies in ALL modes (auto + interactive) to prevent context bloat.
+    // In pi-ai format, toolResult messages have role: "toolResult" and content: TextContent[].
+    // Creates new objects to avoid mutating shared conversation state.
+    if (cmConfig) {
+      const maxChars = cmConfig.tool_result_max_chars ?? 800;
+      const msgs = payload.messages;
+      if (Array.isArray(msgs)) {
+        payload.messages = msgs.map((msg: Record<string, unknown>) => {
+          // Match toolResult messages (role: "toolResult", content is array of content blocks)
+          if (msg?.role === "toolResult" && Array.isArray(msg.content)) {
+            const blocks = msg.content as Array<Record<string, unknown>>;
+            const totalLen = blocks.reduce((sum: number, b) => sum + (typeof b.text === "string" ? b.text.length : 0), 0);
+            if (totalLen > maxChars) {
+              const truncated = blocks.map(b => {
+                if (typeof b.text === "string" && b.text.length > maxChars) {
+                  return { ...b, text: b.text.slice(0, maxChars) + "\n…[truncated]" };
+                }
+                return b;
+              });
+              return { ...msg, content: truncated };
             }
-            return msg;
-          });
+          }
+          return msg;
+        });
+      }
+    }
+
+    // Observation masking: replace old tool results with placeholders.
+    // Only active during auto-mode when context_management.observation_masking is enabled.
+    if (isAutoActive() && cmConfig) {
+      if (cmConfig.observation_masking !== false) {
+        const keepTurns = cmConfig.observation_mask_turns ?? 8;
+        const { createObservationMask } = await import("../context-masker.js");
+        const mask = createObservationMask(keepTurns);
+        const messages = payload.messages;
+        if (Array.isArray(messages)) {
+          payload.messages = mask(messages);
         }
-      } catch { /* non-fatal */ }
+      }
     }
 
     // ── Service Tier ────────────────────────────────────────────────────
