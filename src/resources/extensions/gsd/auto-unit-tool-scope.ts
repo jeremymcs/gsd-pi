@@ -1,59 +1,13 @@
 import { parseUnitId } from "./unit-id.js";
-import { RUN_UAT_WORKFLOW_TOOL_NAMES } from "./tool-presentation-plan.js";
+import {
+  AUTO_UNIT_SCOPED_TOOLS,
+  getForbiddenGsdToolReason,
+} from "./unit-tool-contracts.js";
 
-export const RUN_UAT_BROWSER_TOOL_NAMES = [
-  "browser_navigate",
-  "browser_click",
-  "browser_type",
-  "browser_fill_form",
-  "browser_click_ref",
-  "browser_fill_ref",
-  "browser_wait_for",
-  "browser_assert",
-  "browser_verify",
-  "browser_screenshot",
-  "browser_snapshot_refs",
-  "browser_find",
-  "browser_get_console_logs",
-  "browser_get_network_logs",
-  "browser_evaluate",
-  "browser_reload",
-  "browser_batch",
-  "browser_act",
-] as const;
-
-export const AUTO_UNIT_SCOPED_TOOLS: Record<string, readonly string[]> = {
-  "research-milestone": ["gsd_summary_save", "gsd_decision_save"],
-  "plan-milestone": ["gsd_plan_milestone", "gsd_decision_save", "gsd_requirement_update"],
-  "discuss-milestone": [
-    "gsd_summary_save",
-    "gsd_decision_save",
-    "gsd_requirement_save",
-    "gsd_requirement_update",
-    "gsd_plan_milestone",
-    "gsd_milestone_generate_id",
-  ],
-  "discuss-slice": ["gsd_summary_save", "gsd_decision_save"],
-  "validate-milestone": ["gsd_validate_milestone", "gsd_reassess_roadmap", "subagent"],
-  "complete-milestone": ["gsd_complete_milestone", "subagent"],
-  "research-slice": ["gsd_summary_save", "gsd_decision_save"],
-  "plan-slice": ["gsd_plan_slice", "gsd_plan_task", "gsd_decision_save"],
-  "refine-slice": ["gsd_plan_slice", "gsd_plan_task", "gsd_decision_save"],
-  "replan-slice": ["gsd_replan_slice", "gsd_plan_task", "gsd_decision_save"],
-  "complete-slice": ["gsd_slice_complete", "gsd_task_reopen", "gsd_replan_slice", "gsd_decision_save", "gsd_requirement_update", "subagent"],
-  "reassess-roadmap": ["gsd_reassess_roadmap"],
-  "execute-task": ["gsd_task_complete", "gsd_decision_save"],
-  "execute-task-simple": ["gsd_task_complete", "gsd_decision_save"],
-  "reactive-execute": ["gsd_task_complete", "gsd_decision_save"],
-  "run-uat": [...RUN_UAT_WORKFLOW_TOOL_NAMES, "subagent", ...RUN_UAT_BROWSER_TOOL_NAMES],
-  "gate-evaluate": ["gsd_save_gate_result"],
-  "rewrite-docs": ["gsd_summary_save", "gsd_decision_save"],
-  "workflow-preferences": ["gsd_summary_save"],
-  "discuss-project": ["gsd_summary_save", "gsd_decision_save", "gsd_requirement_save"],
-  "discuss-requirements": ["gsd_requirement_save", "gsd_summary_save"],
-  "research-decision": ["gsd_summary_save"],
-  "research-project": ["gsd_summary_save", "gsd_decision_save"],
-};
+export {
+  AUTO_UNIT_SCOPED_TOOLS,
+  RUN_UAT_BROWSER_TOOL_NAMES,
+} from "./unit-tool-contracts.js";
 
 const WORKFLOW_TOOL_ALIASES: Record<string, string> = {
   gsd_save_decision: "gsd_decision_save",
@@ -120,14 +74,18 @@ export function isWorkflowAliasTool(toolName: string): boolean {
   return Object.prototype.hasOwnProperty.call(WORKFLOW_TOOL_ALIASES, stripMcpToolPrefix(toolName));
 }
 
+function hardBlockReason(unitType: string, what: string): string {
+  return [
+    `HARD BLOCK: Tool Contract failure for unit "${unitType}" — ${what}.`,
+    "This is a mechanical phase-boundary gate. You MUST NOT proceed, retry the same call,",
+    "or route around this block; the orchestrator owns phase transitions.",
+  ].join(" ");
+}
+
 function hardBlock(unitType: string, what: string): AutoUnitToolScopeResult {
   return {
     block: true,
-    reason: [
-      `HARD BLOCK: unit "${unitType}" is constrained by auto-unit tool scope — ${what}.`,
-      "This is a mechanical phase-boundary gate. You MUST NOT proceed, retry the same call,",
-      "or route around this block; the orchestrator owns phase transitions.",
-    ].join(" "),
+    reason: hardBlockReason(unitType, what),
     displayReason: GSD_PHASE_SCOPE_DISPLAY_REASON,
   };
 }
@@ -204,6 +162,14 @@ export function shouldBlockAutoUnitToolCall(
 
   const allowedTools = allowedGsdToolsForUnit(unitType);
   if (allowedTools.includes(canonicalTool)) return { block: false };
+
+  const forbiddenReason = getForbiddenGsdToolReason(unitType, canonicalTool);
+  if (forbiddenReason) {
+    return hardBlock(
+      unitType,
+      `GSD lifecycle tool "${canonicalTool}" is not permitted; ${forbiddenReason} Fix unit-tool-contracts.ts or the ${unitType} prompt.`,
+    );
+  }
 
   return hardBlock(
     unitType,

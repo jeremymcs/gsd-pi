@@ -38,7 +38,7 @@ import { getGuidedUnitContext } from "../guided-unit-context.js";
 import { registerPlanMilestoneSchemaRecovery } from "./plan-milestone-schema-recovery.js";
 import { AUTO_UNIT_SCOPED_TOOLS, RUN_UAT_BROWSER_TOOL_NAMES, isWorkflowAliasTool } from "../auto-unit-tool-scope.js";
 import { filterToolsForProvider } from "../model-router.js";
-import { RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.js";
+import { RUN_UAT_READ_ONLY_TOOL_NAMES, RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.js";
 
 let approvalQuestionAbortInFlight = false;
 
@@ -252,7 +252,12 @@ export function buildRunUatGsdToolSet(
 ): string[] {
   const scoped = resolveScopedToolNames(
     [...activeToolNames, ...registeredToolNames],
-    [...RUN_UAT_WORKFLOW_TOOL_NAMES, "subagent", ...RUN_UAT_BROWSER_TOOL_NAMES],
+    [
+      ...RUN_UAT_WORKFLOW_TOOL_NAMES,
+      ...RUN_UAT_READ_ONLY_TOOL_NAMES,
+      "subagent",
+      ...RUN_UAT_BROWSER_TOOL_NAMES,
+    ],
   );
   return [...new Set(scoped)];
 }

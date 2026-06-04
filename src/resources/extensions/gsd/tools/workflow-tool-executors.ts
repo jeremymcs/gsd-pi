@@ -48,9 +48,11 @@ import { loadEffectiveGSDPreferences } from "../preferences.js";
 import { parseProject } from "../schemas/parsers.js";
 import { getAutoRuntimeSnapshot } from "../auto-runtime-state.js";
 import {
+  buildRunUatResultPresentation,
   canonicalWorkflowToolName,
   parseMcpToolName,
   RUN_UAT_FORBIDDEN_TOOL_NAMES,
+  RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
   RUN_UAT_WORKFLOW_TOOL_NAMES,
 } from "../tool-presentation-plan.js";
 
@@ -90,7 +92,7 @@ function blockIfWrongAutoUnit(requiredUnitType: string, operation: string): Tool
   if (!snapshot.active || !snapshot.currentUnit) return null;
   if (snapshot.currentUnit.type === requiredUnitType) return null;
 
-  const error = `HARD BLOCK: ${operation} may only run from ${requiredUnitType}; active unit is ${snapshot.currentUnit.type}. The orchestrator owns phase transitions.`;
+  const error = `HARD BLOCK: Tool Contract failure: ${operation} may only run from ${requiredUnitType}; active unit is ${snapshot.currentUnit.type}. Fix unit-tool-contracts.ts or the active Unit prompt. The orchestrator owns phase transitions.`;
   return {
     content: [{ type: "text", text: error }],
     details: { operation, error },
@@ -449,6 +451,9 @@ export interface UatEvidenceRef {
   kind: "gsd_uat_exec" | "gsd_exec" | "screenshot" | "log" | "url" | "browser";
   ref: string;
   note?: string;
+  unitType?: string;
+  tool?: string;
+  executionId?: string;
 }
 
 export interface UatCheckResultInput {
@@ -1016,6 +1021,48 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function mergeBlockedTools(
+  current: UatPresentationInput["blockedTools"] | undefined,
+  canonical: UatPresentationInput["blockedTools"],
+): UatPresentationInput["blockedTools"] {
+  const merged = new Map<string, { name: string; reason: string }>();
+  for (const entry of [...(current ?? []), ...canonical]) {
+    merged.set(canonicalWorkflowToolName(parseMcpToolName(entry.name)?.tool ?? entry.name), entry);
+  }
+  return [...merged.values()];
+}
+
+function mergePresentedTools(current: readonly string[] | undefined, canonical: readonly string[]): string[] {
+  return [...new Set([...(current ?? []), ...canonical])];
+}
+
+function normalizeUatResultSaveParams(params: UatResultSaveParams): UatResultSaveParams {
+  const raw = params as Partial<UatResultSaveParams> & Record<string, unknown>;
+  const normalized = { ...params } as UatResultSaveParams;
+  if (typeof raw.verdict === "string") {
+    normalized.verdict = raw.verdict.toUpperCase() as UatVerdict;
+  }
+
+  const canonicalPresentation = buildRunUatResultPresentation();
+  const providedPresentation = raw.presentation as Partial<UatPresentationInput> | undefined;
+  if (!providedPresentation) {
+    normalized.presentation = canonicalPresentation;
+    return normalized;
+  }
+
+  if (providedPresentation.toolPresentationPlanId === RUN_UAT_TOOL_PRESENTATION_PLAN_ID) {
+    normalized.presentation = {
+      ...providedPresentation,
+      surface: providedPresentation.surface ?? canonicalPresentation.surface,
+      presentedTools: mergePresentedTools(providedPresentation.presentedTools, canonicalPresentation.presentedTools),
+      blockedTools: mergeBlockedTools(providedPresentation.blockedTools, canonicalPresentation.blockedTools),
+      toolPresentationPlanId: RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+    } as UatPresentationInput;
+  }
+
+  return normalized;
+}
+
 function ensureUatRequiredFields(params: UatResultSaveParams): string | null {
   if (!isNonEmptyString(params.milestoneId)) return "milestoneId is required";
   if (!isNonEmptyString(params.sliceId)) return "sliceId is required";
@@ -1153,6 +1200,15 @@ function validateUatChecks(basePath: string, params: UatResultSaveParams): strin
     }
   }
   return null;
+}
+
+function validateFreshUatOwnedEvidence(params: UatResultSaveParams): string | null {
+  const hasFreshUatEvidence = params.checks.some((check) =>
+    (check.evidence ?? []).some((evidence) => evidence.kind === "gsd_uat_exec")
+  );
+  return hasFreshUatEvidence
+    ? null
+    : "UAT Assessment requires at least one fresh gsd_uat_exec evidence reference from run-uat";
 }
 
 function validateUatMode(params: UatResultSaveParams): string | null {
@@ -1314,6 +1370,10 @@ export async function executeUatResultSave(
   params: UatResultSaveParams,
   basePath: string = process.cwd(),
 ): Promise<ToolExecutionResult> {
+  const unitGuard = blockIfWrongAutoUnit("run-uat", "save_uat_result");
+  if (unitGuard) return unitGuard;
+
+  params = normalizeUatResultSaveParams(params);
   const dbAvailable = await ensureDbOpen(basePath);
   if (!dbAvailable) return errorResult("save_uat_result", "GSD database is not available.", "db_unavailable");
 
@@ -1323,6 +1383,8 @@ export async function executeUatResultSave(
   if (presentationError) return errorResult("save_uat_result", presentationError, "alias_tool_name");
   const checkError = validateUatChecks(basePath, params);
   if (checkError) return errorResult("save_uat_result", checkError, "invalid_evidence");
+  const freshEvidenceError = validateFreshUatOwnedEvidence(params);
+  if (freshEvidenceError) return errorResult("save_uat_result", freshEvidenceError, "missing_fresh_uat_evidence");
   const modeError = validateUatMode(params);
   if (modeError) return errorResult("save_uat_result", modeError, "uat_mode_mismatch");
 

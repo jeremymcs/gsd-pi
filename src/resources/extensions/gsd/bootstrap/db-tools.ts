@@ -427,6 +427,9 @@ export function registerDbTools(pi: ExtensionAPI): void {
     kind: StringEnum(["gsd_uat_exec", "gsd_exec", "screenshot", "log", "url", "browser"], { description: "Evidence kind" }),
     ref: Type.String({ description: "Evidence ID, approved .gsd path, or URL" }),
     note: Type.Optional(Type.String({ description: "Short evidence note" })),
+    unitType: Type.Optional(Type.String({ description: "Unit that produced the evidence" })),
+    tool: Type.Optional(Type.String({ description: "Tool that produced the evidence" })),
+    executionId: Type.Optional(Type.String({ description: "Stable execution or artifact id" })),
   });
 
   const uatCheck = Type.Object({
@@ -440,17 +443,17 @@ export function registerDbTools(pi: ExtensionAPI): void {
   });
 
   const toolPresentationBlock = Type.Object({
-    surface: StringEnum(["provider-tools", "claude-code-sdk", "mcp", "hybrid"], { description: "Tool presentation surface" }),
+    surface: Type.Optional(StringEnum(["provider-tools", "claude-code-sdk", "mcp", "hybrid"], { description: "Tool presentation surface" })),
     model: Type.Optional(Type.Object({
       provider: Type.Optional(Type.String()),
       api: Type.Optional(Type.String()),
       id: Type.Optional(Type.String()),
     })),
-    presentedTools: Type.Array(Type.String(), { description: "Tool names actually presented to the model" }),
-    blockedTools: Type.Array(Type.Object({
+    presentedTools: Type.Optional(Type.Array(Type.String(), { description: "Tool names actually presented to the model" })),
+    blockedTools: Type.Optional(Type.Array(Type.Object({
       name: Type.String(),
       reason: Type.String(),
-    }), { description: "Tool names blocked from the model with reasons" }),
+    }), { description: "Tool names blocked from the model with reasons" })),
     aliases: Type.Optional(Type.Array(Type.Object({
       requested: Type.String(),
       canonical: Type.String(),
@@ -474,12 +477,12 @@ export function registerDbTools(pi: ExtensionAPI): void {
       "Do not use raw gsd_summary_save as a substitute for UAT results.",
     ],
     parameters: Type.Object({
-      milestoneId: Type.String({ description: "Milestone ID (e.g. M001)" }),
-      sliceId: Type.String({ description: "Slice ID (e.g. S01)" }),
-      uatType: StringEnum(["artifact-driven", "browser-executable", "runtime-executable", "live-runtime", "mixed", "human-experience"], { description: "Declared UAT mode" }),
-      verdict: StringEnum(["PASS", "FAIL", "PARTIAL"], { description: "Overall UAT verdict" }),
-      checks: Type.Array(uatCheck, { description: "Structured check results" }),
-      presentation: toolPresentationBlock,
+      milestoneId: Type.Optional(Type.String({ description: "Milestone ID (e.g. M001)" })),
+      sliceId: Type.Optional(Type.String({ description: "Slice ID (e.g. S01)" })),
+      uatType: Type.Optional(Type.String({ description: "Declared UAT mode" })),
+      verdict: Type.Optional(Type.String({ description: "Overall UAT verdict: PASS, FAIL, or PARTIAL" })),
+      checks: Type.Optional(Type.Array(uatCheck, { description: "Structured check results" })),
+      presentation: Type.Optional(toolPresentationBlock),
       notes: Type.Optional(Type.String({ description: "Overall verdict rationale" })),
       attempt: Type.Optional(Type.String({ description: "Attempt number or auto" })),
       previousAttemptId: Type.Optional(Type.String({ description: "Prior attempt ID, when retrying" })),

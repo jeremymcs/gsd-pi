@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { RUN_UAT_WORKFLOW_TOOL_NAMES } from "./tool-presentation-plan.js";
+import { getRequiredWorkflowToolsForUnit } from "./unit-tool-contracts.js";
 
 type WorkflowExecutorsModule = typeof import("./tools/workflow-tool-executors.js");
 
@@ -414,83 +414,11 @@ export function buildWorkflowMcpServers(
 }
 
 export function getRequiredWorkflowToolsForGuidedUnit(unitType: string): string[] {
-  switch (unitType) {
-    case "discuss-project":
-      return ["ask_user_questions", "gsd_summary_save"];
-    case "discuss-requirements":
-      return ["ask_user_questions", "gsd_requirement_save", "gsd_summary_save"];
-    case "research-decision":
-      return ["ask_user_questions"];
-    case "discuss-milestone":
-      return [
-        "gsd_summary_save",
-        "gsd_requirement_save",
-        "gsd_requirement_update",
-        "gsd_plan_milestone",
-        "gsd_milestone_generate_id",
-      ];
-    case "discuss-slice":
-      return ["gsd_summary_save"];
-    case "research-milestone":
-    case "research-slice":
-      return ["gsd_summary_save"];
-    case "plan-milestone":
-      return ["gsd_plan_milestone"];
-    case "plan-slice":
-      return ["gsd_plan_slice"];
-    case "execute-task":
-      return ["gsd_task_complete"];
-    case "complete-slice":
-      return ["gsd_slice_complete", "gsd_task_reopen", "gsd_replan_slice"];
-    default:
-      return [];
-  }
+  return getRequiredWorkflowToolsForUnit(unitType);
 }
 
 export function getRequiredWorkflowToolsForAutoUnit(unitType: string): string[] {
-  switch (unitType) {
-    case "discuss-project":
-      return ["ask_user_questions", "gsd_summary_save"];
-    case "discuss-requirements":
-      return ["ask_user_questions", "gsd_requirement_save", "gsd_summary_save"];
-    case "research-decision":
-      return ["ask_user_questions"];
-    case "discuss-milestone":
-      return [
-        "gsd_summary_save",
-        "gsd_requirement_save",
-        "gsd_requirement_update",
-        "gsd_plan_milestone",
-        "gsd_milestone_generate_id",
-      ];
-    case "research-milestone":
-    case "research-slice":
-      return ["gsd_summary_save"];
-    case "run-uat":
-      return [...RUN_UAT_WORKFLOW_TOOL_NAMES];
-    case "plan-milestone":
-      return ["gsd_plan_milestone"];
-    case "plan-slice":
-      return ["gsd_plan_slice"];
-    case "execute-task":
-    case "execute-task-simple":
-    case "reactive-execute":
-      return ["gsd_task_complete"];
-    case "complete-slice":
-      return ["gsd_slice_complete", "gsd_task_reopen", "gsd_replan_slice"];
-    case "replan-slice":
-      return ["gsd_replan_slice"];
-    case "reassess-roadmap":
-      return ["gsd_milestone_status", "gsd_reassess_roadmap"];
-    case "gate-evaluate":
-      return ["gsd_save_gate_result"];
-    case "validate-milestone":
-      return ["gsd_milestone_status", "gsd_validate_milestone", "gsd_reassess_roadmap"];
-    case "complete-milestone":
-      return ["gsd_milestone_status", "gsd_complete_milestone"];
-    default:
-      return [];
-  }
+  return getRequiredWorkflowToolsForUnit(unitType);
 }
 
 export function usesWorkflowMcpTransport(

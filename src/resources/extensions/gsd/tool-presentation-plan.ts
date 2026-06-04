@@ -1,6 +1,18 @@
 // Project/App: gsd-pi
 // File Purpose: Resolve phase-aware tool surfaces for GSD model presentations.
 
+import {
+  RUN_UAT_READ_ONLY_TOOL_NAMES,
+  RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+  RUN_UAT_WORKFLOW_TOOL_NAMES,
+} from "./unit-tool-contracts.js";
+
+export {
+  RUN_UAT_READ_ONLY_TOOL_NAMES,
+  RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+  RUN_UAT_WORKFLOW_TOOL_NAMES,
+} from "./unit-tool-contracts.js";
+
 export type ToolPresentationSurface = "provider-tools" | "claude-code-sdk" | "mcp" | "hybrid";
 
 export interface ToolPresentationModel {
@@ -19,14 +31,6 @@ export interface ToolPresentationPlan {
   aliases: Array<{ requested: string; canonical: string }>;
   diagnostics: string[];
 }
-
-export const RUN_UAT_WORKFLOW_TOOL_NAMES = [
-  "gsd_uat_exec",
-  "gsd_uat_result_save",
-  "gsd_resume",
-  "gsd_milestone_status",
-  "gsd_journal_query",
-] as const;
 
 export const RUN_UAT_FORBIDDEN_TOOL_NAMES = [
   "edit",
@@ -105,8 +109,34 @@ function addBlockedTool(
 export function buildRunUatCanonicalToolNames(options: { includeBrowserTools?: readonly string[] } = {}): string[] {
   return dedupe([
     ...RUN_UAT_WORKFLOW_TOOL_NAMES,
+    ...RUN_UAT_READ_ONLY_TOOL_NAMES,
     ...(options.includeBrowserTools ?? []),
   ]);
+}
+
+export function buildRunUatResultPresentation(options: {
+  surface?: ToolPresentationSurface;
+  includeBrowserTools?: readonly string[];
+  presentedTools?: readonly string[];
+} = {}): {
+  surface: ToolPresentationSurface;
+  presentedTools: string[];
+  blockedTools: Array<{ name: string; reason: string }>;
+  toolPresentationPlanId: string;
+} {
+  const presentedTools = options.presentedTools
+    ? dedupe(options.presentedTools)
+    : buildRunUatCanonicalToolNames({ includeBrowserTools: options.includeBrowserTools });
+  const blockedTools = RUN_UAT_FORBIDDEN_TOOL_NAMES
+    .filter((toolName) => !toolName.includes("*"))
+    .map((name) => ({ name, reason: "forbidden during run-uat" }));
+
+  return {
+    surface: options.surface ?? "mcp",
+    presentedTools,
+    blockedTools,
+    toolPresentationPlanId: RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+  };
 }
 
 export function resolveToolPresentationPlan(options: {

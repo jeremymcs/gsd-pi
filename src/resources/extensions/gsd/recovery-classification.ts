@@ -6,7 +6,9 @@ import { ReconciliationFailedError } from "./state-reconciliation.js";
 
 export type RecoveryFailureKind =
   | "tool-schema"
+  | "tool-contract"
   | "deterministic-policy"
+  | "lifecycle-progression"
   | "stale-worker"
   | "worktree-invalid"
   | "verification-drift"
@@ -52,6 +54,14 @@ export function classifyFailure(input: RecoveryClassificationInput): RecoveryCla
         exitReason: "tool-schema",
         remediation: "Fix the Unit Tool Contract or tool schema before retrying.",
       };
+    case "tool-contract":
+      return {
+        failureKind,
+        action: "stop",
+        reason: `Tool Contract failure${unitSuffix(input)}: ${message}`,
+        exitReason: "tool-contract",
+        remediation: "Fix the Unit Tool Contract or prompt so the Unit is only asked to use tools owned by its phase.",
+      };
     case "deterministic-policy":
       return {
         failureKind,
@@ -59,6 +69,14 @@ export function classifyFailure(input: RecoveryClassificationInput): RecoveryCla
         reason: `Deterministic policy failure${unitSuffix(input)}: ${message}`,
         exitReason: "deterministic-policy",
         remediation: "Resolve the policy blocker; retrying the same Unit will repeat the failure.",
+      };
+    case "lifecycle-progression":
+      return {
+        failureKind,
+        action: "stop",
+        reason: `Lifecycle progression failure${unitSuffix(input)}: ${message}`,
+        exitReason: "lifecycle-progression",
+        remediation: "Route to the required owning Unit or restore the missing artifact before advancing lifecycle state.",
       };
     case "stale-worker":
       return {
@@ -118,6 +136,8 @@ export function classifyFailure(input: RecoveryClassificationInput): RecoveryCla
 }
 
 function inferFailureKind(message: string): RecoveryFailureKind {
+  if (/tool contract|auto-unit tool scope|phase-boundary gate|not permitted.*own/i.test(message)) return "tool-contract";
+  if (/lifecycle progression|required artifact|missing .*assessment|missing .*closeout|cannot legally (?:advance|progress)/i.test(message)) return "lifecycle-progression";
   if (/schema|invalid.*tool|tool.*invalid|enum/i.test(message)) return "tool-schema";
   if (/deterministic policy|policy rejection|write gate|blocked by policy/i.test(message)) return "deterministic-policy";
   if (/stale worker|stale lock|worker.*stale/i.test(message)) return "stale-worker";

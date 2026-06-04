@@ -8,12 +8,14 @@ import {
   type ToolsPolicy,
 } from "./unit-context-manifest.js";
 import { getRequiredWorkflowToolsForAutoUnit } from "./workflow-mcp.js";
+import { getUnitToolSurfaceContract } from "./unit-tool-contracts.js";
 
 export interface UnitToolContract {
   unitType: string;
   contextMode: ContextModePolicy;
   toolsPolicy: ToolsPolicy;
   requiredWorkflowTools: readonly string[];
+  forbiddenWorkflowTools: readonly { name: string; reason: string }[];
   promptObligations: readonly string[];
   validationRules: readonly string[];
   closeoutTools: readonly string[];
@@ -30,6 +32,7 @@ export type ToolContractResult =
 
 export function compileUnitToolContract(unitType: string): ToolContractResult {
   const manifest = resolveManifest(unitType);
+  const surfaceContract = getUnitToolSurfaceContract(unitType);
   if (!manifest) {
     return {
       ok: false,
@@ -39,6 +42,8 @@ export function compileUnitToolContract(unitType: string): ToolContractResult {
   }
 
   const requiredWorkflowTools = getRequiredWorkflowToolsForAutoUnit(unitType);
+  const forbiddenWorkflowTools = Object.entries(surfaceContract?.forbiddenGsdTools ?? {})
+    .map(([name, reason]) => ({ name, reason }));
   const closeoutTools = requiredWorkflowTools.filter((tool) =>
     /^gsd_(?:task|slice|milestone|complete|validate|save|summary)/.test(tool),
   );
@@ -58,6 +63,7 @@ export function compileUnitToolContract(unitType: string): ToolContractResult {
       contextMode: manifest.contextMode,
       toolsPolicy: manifest.tools,
       requiredWorkflowTools,
+      forbiddenWorkflowTools,
       promptObligations: [
         `context-mode:${manifest.contextMode}`,
         `tools-policy:${manifest.tools.mode}`,

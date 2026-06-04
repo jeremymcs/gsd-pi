@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.ts";
+import {
+  buildRunUatResultPresentation,
+  RUN_UAT_READ_ONLY_TOOL_NAMES,
+  RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
+  RUN_UAT_WORKFLOW_TOOL_NAMES,
+} from "../tool-presentation-plan.ts";
 
 const promptsDir = join(process.cwd(), "src/resources/extensions/gsd/prompts");
 const templatesDir = join(process.cwd(), "src/resources/extensions/gsd/templates");
@@ -29,7 +34,7 @@ test("run-uat prompt branches on dynamic UAT mode and supports runtime evidence"
   assert.match(prompt, /uatType:\s*"\{\{uatType\}\}"/);
   assert.match(prompt, /gsd_uat_result_save/);
   assert.match(prompt, /presentedTools/);
-  assert.match(prompt, /blockedTools/);
+  assert.match(prompt, /\{\{canonicalPresentation\}\}/);
   assert.match(prompt, /live-runtime/);
   assert.match(prompt, /browser\/runtime\/network/i);
   assert.match(prompt, /NEEDS-HUMAN/);
@@ -51,16 +56,29 @@ test("run-uat prompt gives the complete UAT result-save presentation contract", 
   const prompt = readPrompt("run-uat");
   assert.match(prompt, /Call `gsd_uat_result_save` once after all checks are complete/);
   assert.doesNotMatch(prompt, /Call `gsd_summary_save` with `artifact_type: "ASSESSMENT"`/);
+  assert.match(prompt, /\{\{canonicalPresentation\}\}/);
+  assert.match(prompt, /\{\{toolPresentationPlanId\}\}/);
 
+  const presentation = buildRunUatResultPresentation();
+  assert.equal(presentation.toolPresentationPlanId, RUN_UAT_TOOL_PRESENTATION_PLAN_ID);
   for (const toolName of RUN_UAT_WORKFLOW_TOOL_NAMES) {
-    assert.ok(prompt.includes(`"${toolName}"`), `prompt should include required presented tool ${toolName}`);
+    assert.ok(presentation.presentedTools.includes(toolName), `presentation should include required tool ${toolName}`);
+  }
+  for (const toolName of RUN_UAT_READ_ONLY_TOOL_NAMES) {
+    assert.ok(presentation.presentedTools.includes(toolName), `presentation should include read-only tool ${toolName}`);
   }
 
   for (const toolName of ["gsd_exec", "gsd_summary_save", "gsd_save_gate_result"] as const) {
-    assert.ok(prompt.includes(`name: "${toolName}"`), `prompt should include blocked tool ${toolName}`);
+    assert.ok(
+      presentation.blockedTools.some((entry) => entry.name === toolName),
+      `presentation should include blocked tool ${toolName}`,
+    );
   }
 
-  assert.ok(prompt.includes("forbidden during run-uat"), "prompt should explain blocked run-uat tools");
+  assert.ok(
+    presentation.blockedTools.every((entry) => entry.reason === "forbidden during run-uat"),
+    "presentation should explain blocked run-uat tools",
+  );
 });
 
 test("workflow-start prompt defaults to autonomy instead of per-phase confirmation", () => {

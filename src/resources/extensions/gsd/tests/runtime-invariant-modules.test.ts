@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { classifyFailure } from "../recovery-classification.js";
 import { reconcileBeforeDispatch } from "../state-reconciliation.js";
 import { compileUnitToolContract } from "../tool-contract.js";
+import { shouldBlockAutoUnitToolCall } from "../auto-unit-tool-scope.js";
 import type { GSDState } from "../types.js";
 
 function makeState(overrides: Partial<GSDState> = {}): GSDState {
@@ -63,8 +64,33 @@ test("Tool Contract compiles known Unit prompt and tool policy", () => {
   assert.equal(result.ok, true);
   assert.equal(result.ok && result.contract.unitType, "execute-task");
   assert.deepEqual(result.ok && result.contract.requiredWorkflowTools, ["gsd_task_complete"]);
+  assert.deepEqual(result.ok && result.contract.forbiddenWorkflowTools, []);
   assert.equal(result.ok && result.contract.toolsPolicy.mode, "all");
   assert.ok(result.ok && result.contract.validationRules.includes("closeout-tool-present"));
+});
+
+test("Tool Contract records high-risk cross-phase tool boundaries without single-owning every tool", () => {
+  const completeSlice = compileUnitToolContract("complete-slice");
+  const runUat = compileUnitToolContract("run-uat");
+
+  assert.equal(completeSlice.ok, true);
+  assert.ok(
+    completeSlice.ok &&
+      completeSlice.contract.forbiddenWorkflowTools.some((tool) => tool.name === "gsd_uat_result_save"),
+    "complete-slice should explicitly forbid saving UAT Assessments",
+  );
+
+  assert.equal(runUat.ok, true);
+  assert.ok(
+    runUat.ok &&
+      runUat.contract.requiredWorkflowTools.includes("gsd_uat_result_save"),
+    "run-uat should own the UAT result-save tool",
+  );
+  assert.ok(
+    runUat.ok &&
+      runUat.contract.forbiddenWorkflowTools.some((tool) => tool.name === "gsd_exec"),
+    "run-uat should prefer typed UAT execution over generic gsd_exec",
+  );
 });
 
 test("Tool Contract fails closed for unknown Units", () => {
@@ -74,10 +100,20 @@ test("Tool Contract fails closed for unknown Units", () => {
   assert.equal(!result.ok && result.reason, "unknown-unit-type");
 });
 
+test("auto Unit tool scope blocks complete-slice from saving UAT Assessment", () => {
+  const result = shouldBlockAutoUnitToolCall("complete-slice", "gsd_uat_result_save");
+
+  assert.equal(result.block, true);
+  assert.match(result.reason ?? "", /Tool Contract failure/);
+  assert.match(result.reason ?? "", /Run UAT owns persisted UAT Assessment/);
+});
+
 test("Recovery Classification covers ADR-015 failure families", () => {
   const cases = [
     ["invalid tool schema enum", "tool-schema", "stop"],
+    ["Tool Contract failure: complete-slice cannot use gsd_uat_result_save", "tool-contract", "stop"],
     ["deterministic policy rejection", "deterministic-policy", "stop"],
+    ["cannot legally advance because required UAT Assessment artifact is missing", "lifecycle-progression", "stop"],
     ["stale worker lease", "stale-worker", "stop"],
     ["worktree root missing .git", "worktree-invalid", "stop"],
     ["verification drift in state snapshot", "verification-drift", "escalate"],

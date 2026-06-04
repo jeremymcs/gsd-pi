@@ -101,7 +101,7 @@ test("buildMinimalAutoGsdToolSet keeps unit-specific completion tools without al
   assert.ok(!result.includes("gsd_complete_slice"));
 });
 
-test("buildMinimalAutoGsdToolSet scopes run-uat to UAT-specific tools", () => {
+test("buildMinimalAutoGsdToolSet scopes run-uat to UAT-specific and read-only tools", () => {
   const active = ["ask_user_questions", "bash", "read", "edit", "write", "gsd_summary_save"];
   const registered = [
     ...active,
@@ -123,11 +123,11 @@ test("buildMinimalAutoGsdToolSet scopes run-uat to UAT-specific tools", () => {
   assert.ok(result.includes("gsd_resume"));
   assert.ok(result.includes("gsd_milestone_status"));
   assert.ok(result.includes("gsd_journal_query"));
+  assert.ok(result.includes("read"));
   assert.ok(result.includes("browser_navigate"), "run-uat needs browser_navigate");
   assert.ok(result.includes("browser_click"), "run-uat needs browser_click");
   assert.ok(!result.includes("ToolSearch"));
   assert.ok(!result.includes("bash"));
-  assert.ok(!result.includes("read"));
   assert.ok(!result.includes("edit"));
   assert.ok(!result.includes("write"));
   assert.ok(!result.includes("gsd_exec"));
@@ -230,9 +230,9 @@ test("buildMinimalAutoGsdToolSet preserves compatible browser add-ons for run-ua
   assert.ok(result.includes("gsd_uat_exec"));
   assert.ok(result.includes("gsd_uat_result_save"));
   assert.ok(result.includes("subagent"));
+  assert.ok(result.includes("read"));
   assert.ok(!result.includes("ToolSearch"));
   assert.ok(!result.includes("bash"));
-  assert.ok(!result.includes("read"));
   assert.ok(!result.includes("edit"));
   assert.ok(!result.includes("write"));
   assert.ok(!result.includes("gsd_exec"));
@@ -281,12 +281,12 @@ test("buildMinimalAutoGsdToolSet honors provider-compatible registered tools for
 
   assert.ok(result.includes("gsd_uat_exec"));
   assert.ok(result.includes("gsd_uat_result_save"));
+  assert.ok(result.includes("read"));
   assert.ok(result.includes("browser_navigate"));
   assert.ok(result.includes("browser_click"));
   assert.ok(!result.includes("browser_screenshot"), "provider-filtered screenshot tool must stay filtered");
   assert.ok(!result.includes("ToolSearch"));
   assert.ok(!result.includes("bash"));
-  assert.ok(!result.includes("read"));
   assert.ok(!result.includes("gsd_exec"));
   assert.ok(!result.includes("gsd_summary_save"));
   assert.ok(!result.includes("gsd_save_gate_result"));

@@ -75,24 +75,10 @@ verdict: "PASS" | "FAIL" | "PARTIAL",
 notes: "<one sentence overall verdict rationale>",
 ```
 
-Use this exact `presentation` shape in the save call so the audit can verify the run-uat tool surface without retrying missing fields one by one:
+Use this canonical `presentation` object in the save call so the audit can verify the run-uat tool surface without retrying missing fields one by one. Keep `toolPresentationPlanId` as `{{toolPresentationPlanId}}`. If browser tools were actually presented for this run, add those concrete browser tool names to `presentedTools`; otherwise reuse this object exactly:
 
-```ts
-presentation: {
-  surface: "mcp",
-  presentedTools: [
-    "gsd_uat_exec",
-    "gsd_uat_result_save",
-    "gsd_resume",
-    "gsd_milestone_status",
-    "gsd_journal_query",
-  ],
-  blockedTools: [
-    { name: "gsd_exec", reason: "forbidden during run-uat" },
-    { name: "gsd_summary_save", reason: "forbidden during run-uat" },
-    { name: "gsd_save_gate_result", reason: "forbidden during run-uat" },
-  ],
-}
+```json
+{{canonicalPresentation}}
 ```
 
 Pass `checks` with this logical shape:

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { extractUatType } from '../../files.ts';
 import { resolveSliceFile } from '../../paths.ts';
 import { buildRunUatPrompt, checkNeedsRunUat } from '../../auto-prompts.ts';
+import { buildRunUatResultPresentation, RUN_UAT_TOOL_PRESENTATION_PLAN_ID } from '../../tool-presentation-plan.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const worktreePromptsDir = join(__dirname, '../..', 'prompts');
@@ -20,6 +21,8 @@ function loadPromptFromWorktree(name: string, vars: Record<string, string> = {})
   let content = readFileSync(path, 'utf-8');
   const effectiveVars = {
     skillActivation: 'If no installed skill clearly matches this unit, skip explicit skill activation and continue with the required workflow.',
+    canonicalPresentation: JSON.stringify(buildRunUatResultPresentation(), null, 2),
+    toolPresentationPlanId: RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
     ...vars,
   };
   for (const [key, value] of Object.entries(effectiveVars)) {
