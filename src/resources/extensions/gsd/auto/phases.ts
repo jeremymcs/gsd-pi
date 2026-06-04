@@ -1470,6 +1470,9 @@ export async function runDispatch(
     sessionContextWindow: ctx.model?.contextWindow,
     sessionProvider: ctx.model?.provider,
     modelRegistry: ctx.modelRegistry as MinimalModelRegistry | undefined,
+    activeTools,
+    sessionBaseUrl: ctx.model?.baseUrl,
+    sessionAuthMode: authMode,
   });
   if (isUnhandledPhaseWarning(dispatchResult)) {
     deps.invalidateAllCaches();
@@ -1493,6 +1496,9 @@ export async function runDispatch(
       sessionContextWindow: ctx.model?.contextWindow,
       sessionProvider: ctx.model?.provider,
       modelRegistry: ctx.modelRegistry as MinimalModelRegistry | undefined,
+      activeTools,
+      sessionBaseUrl: ctx.model?.baseUrl,
+      sessionAuthMode: authMode,
     });
   }
 
