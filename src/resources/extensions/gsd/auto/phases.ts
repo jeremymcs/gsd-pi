@@ -3170,5 +3170,15 @@ export async function runFinalize(
     }
   }
 
+  if (preUnitSnapshot?.type === "complete-milestone" && s.currentMilestoneId) {
+    await deps.stopAuto(ctx, pi, `Milestone ${s.currentMilestoneId} complete`, {
+      completionWidget: {
+        milestoneId: s.currentMilestoneId,
+        milestoneTitle: iterData.midTitle,
+      },
+    });
+    return { action: "break", reason: "milestone-complete" };
+  }
+
   return { action: "next", data: undefined as void };
 }

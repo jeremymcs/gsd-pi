@@ -207,6 +207,7 @@ test("runFinalize merges a verified complete-milestone immediately and only once
   const startedAt = Date.now();
   let lifecycleMergeCalls = 0;
   let resolverMergeCalls = 0;
+  const stopAutoCalls: Array<{ reason?: string; options?: unknown }> = [];
   s.basePath = base;
   s.originalBasePath = base;
   s.currentMilestoneId = "M001";
@@ -219,6 +220,9 @@ test("runFinalize merges a verified complete-milestone immediately and only once
   const result = await runFinalizeWithDeps(s, {
     preflightCleanRoot: () => ({ stashPushed: false }),
     postflightPopStash: () => ({ needsManualRecovery: false }),
+    stopAuto: async (_ctx: unknown, _pi: unknown, reason?: string, options?: unknown) => {
+      stopAutoCalls.push({ reason, options });
+    },
     resolver: {
       mergeAndExit() {
         resolverMergeCalls++;
@@ -232,10 +236,19 @@ test("runFinalize merges a verified complete-milestone immediately and only once
     },
   });
 
-  assert.equal(result.action, "next");
+  assert.equal(result.action, "break");
+  assert.equal(result.reason, "milestone-complete");
   assert.equal(lifecycleMergeCalls, 1);
   assert.equal(resolverMergeCalls, 0);
   assert.equal(s.milestoneMergedInPhases, true);
+  assert.equal(stopAutoCalls.length, 1);
+  assert.equal(stopAutoCalls[0]?.reason, "Milestone M001 complete");
+  assert.deepEqual(stopAutoCalls[0]?.options, {
+    completionWidget: {
+      milestoneId: "M001",
+      milestoneTitle: "Milestone",
+    },
+  });
 
   s.currentUnit = {
     type: "complete-milestone",
@@ -245,6 +258,9 @@ test("runFinalize merges a verified complete-milestone immediately and only once
   const second = await runFinalizeWithDeps(s, {
     preflightCleanRoot: () => ({ stashPushed: false }),
     postflightPopStash: () => ({ needsManualRecovery: false }),
+    stopAuto: async (_ctx: unknown, _pi: unknown, reason?: string, options?: unknown) => {
+      stopAutoCalls.push({ reason, options });
+    },
     resolver: {
       mergeAndExit() {
         resolverMergeCalls++;
@@ -258,9 +274,11 @@ test("runFinalize merges a verified complete-milestone immediately and only once
     },
   });
 
-  assert.equal(second.action, "next");
+  assert.equal(second.action, "break");
+  assert.equal(second.reason, "milestone-complete");
   assert.equal(lifecycleMergeCalls, 1);
   assert.equal(resolverMergeCalls, 0);
+  assert.equal(stopAutoCalls.length, 2);
 });
 
 test("runFinalize does not render next-phase handoff for complete-milestone", async (t) => {
@@ -302,7 +320,7 @@ test("runFinalize does not render next-phase handoff for complete-milestone", as
     },
   );
 
-  assert.equal(result.action, "next");
+  assert.equal(result.action, "break");
   assert.equal(
     widgetCalls.some(([key]) => key === "gsd-outcome"),
     false,
