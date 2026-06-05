@@ -1557,7 +1557,7 @@ export async function bootstrapAutoSession(
     s.autoStartTime = Date.now();
     s.resourceVersionOnStart = readResourceVersion();
     s.pendingQuickTasks = [];
-    s.currentUnit = null;
+    s.clearCurrentUnit();
     s.currentMilestoneId ??=
       strandedRecoveryAction?.milestoneId ??
       (deepProjectStagePending ? null : state.activeMilestone?.id ?? null);

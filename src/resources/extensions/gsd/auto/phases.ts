@@ -539,7 +539,7 @@ async function closeoutAndStop(
       s.currentUnit.startedAt,
       deps.buildSnapshotOpts(s.currentUnit.type, s.currentUnit.id),
     );
-    s.currentUnit = null;
+    s.clearCurrentUnit();
   }
   await deps.stopAuto(ctx, pi, reason);
 }
@@ -807,7 +807,7 @@ async function failClosedOnFinalizeTimeout(
   );
 
   await deps.pauseAuto(ctx, pi);
-  s.currentUnit = null;
+  s.clearCurrentUnit();
   clearCurrentPhase();
   drainLogs();
   return { action: "break", reason: progressKind };
@@ -1389,7 +1389,7 @@ export async function runPreDispatch(
         s.currentUnit.startedAt,
         deps.buildSnapshotOpts(s.currentUnit.type, s.currentUnit.id),
       );
-      s.currentUnit = null;
+      s.clearCurrentUnit();
     }
     await deps.stopAuto(ctx, pi, `Milestone ${mid} complete`, {
       completionWidget: {
@@ -2342,7 +2342,19 @@ export async function runUnitPhase(
   _resetLogs();
   const unitStartedAt = Date.now();
   s.unitDispatchCount.set(dispatchKey, nextDispatchCount);
-  s.currentUnit = { type: unitType, id: unitId, startedAt: unitStartedAt, workspaceRoot: s.basePath };
+  s.setCurrentUnit({ type: unitType, id: unitId, startedAt: unitStartedAt, workspaceRoot: s.basePath });
+  if (unitType === "execute-task") {
+    const { milestone, slice, task } = parseUnitId(unitId);
+    if (milestone && slice && task && isDbAvailable()) {
+      try {
+        const taskRow = getTask(milestone, slice, task);
+        if (taskRow) s.sourceObservations.observePlanTask(taskRow);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logWarning("prompt", `failed to preload source observations for ${unitId}: ${message}`);
+      }
+    }
+  }
   s.rootWriteBaseline = isIsolatedWorktreeSession(s)
     ? captureRootDirtySnapshot(s.originalBasePath)
     : null;
@@ -2453,7 +2465,7 @@ export async function runUnitPhase(
       category: "unknown",
       isTransient: true,
     });
-    s.currentUnit = null;
+    s.clearCurrentUnit();
     await deps.pauseAuto(ctx, pi);
     return { action: "break", reason: "ghost-completion" };
   }
@@ -2893,7 +2905,7 @@ export async function runFinalize(
       s.currentUnit?.id === preUnitSnapshot.id &&
       s.currentUnit?.startedAt === preUnitSnapshot.startedAt
     ) {
-      s.currentUnit = null;
+      s.clearCurrentUnit();
     }
     s.rootWriteBaseline = null;
   };

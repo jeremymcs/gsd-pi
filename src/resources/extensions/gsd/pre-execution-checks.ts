@@ -469,6 +469,13 @@ export function shouldValidatePlanningPathReference(raw: string): boolean {
   return shouldValidateInputAsPath(raw);
 }
 
+export function extractPlanningPathReference(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed || NON_PATH_SENTINEL_RE.test(trimmed)) return null;
+  if (!shouldValidateInputAsPath(trimmed)) return null;
+  return extractPathFromAnnotation(trimmed);
+}
+
 function shouldValidateInputAsPath(raw: string): boolean {
   const trimmed = raw.trim();
   if (!trimmed) return false;

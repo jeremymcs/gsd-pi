@@ -1246,7 +1246,7 @@ export async function cleanupAfterLoopExit(ctx: ExtensionContext): Promise<void>
   const preserveStepSurface = s.preserveStepSurfaceAfterLoopExit;
   const preserveCompletionSurface = s.completionStopInProgress;
   const preservePausedSurface = s.paused;
-  s.currentUnit = null;
+  s.clearCurrentUnit();
   s.active = false;
   deactivateGSD();
   clearUnitTimeout();
@@ -1990,7 +1990,7 @@ export async function pauseAuto(
       // Non-fatal — best-effort closeout on pause
       logWarning("engine", `unit closeout on pause failed: ${err instanceof Error ? err.message : String(err)}`, { file: "auto.ts" });
     }
-    s.currentUnit = null;
+    s.clearCurrentUnit();
   }
 
   // Keep STATE.md aligned with the DB-backed state before releasing pause state.
@@ -3311,7 +3311,7 @@ export async function dispatchHookUnit(
     s.stepMode = true;
     s.cmdCtx = ctx as ExtensionCommandContext;
     s.autoStartTime = Date.now();
-    s.currentUnit = null;
+    s.clearCurrentUnit();
     s.pendingQuickTasks = [];
   }
 
@@ -3328,12 +3328,12 @@ export async function dispatchHookUnit(
   const hookUnitType = `hook/${hookName}`;
   const hookStartedAt = Date.now();
 
-  s.currentUnit = {
+  s.setCurrentUnit({
     type: triggerUnitType,
     id: triggerUnitId,
     startedAt: hookStartedAt,
     workspaceRoot: s.basePath,
-  };
+  });
 
   const result = await s.cmdCtx!.newSession({ workspaceRoot: s.basePath });
   if (result.cancelled) {
@@ -3341,12 +3341,12 @@ export async function dispatchHookUnit(
     return false;
   }
 
-  s.currentUnit = {
+  s.setCurrentUnit({
     type: hookUnitType,
     id: triggerUnitId,
     startedAt: hookStartedAt,
     workspaceRoot: s.basePath,
-  };
+  });
 
   if (hookModel) {
     const availableModels = ctx.modelRegistry.getAvailable();

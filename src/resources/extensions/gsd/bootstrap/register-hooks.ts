@@ -17,7 +17,17 @@ import { canonicalToolName, clearDiscussionFlowState, isDepthConfirmationAnswer,
 import { resolveManifest } from "../unit-context-manifest.js";
 import { isBlockedStateFile, isBashWriteToStateFile, BLOCKED_WRITE_ERROR } from "../write-intercept.js";
 import { loadFile, saveFile, formatContinue } from "../files.js";
-import { clearToolInvocationError, getAutoRuntimeSnapshot, isAutoActive, isAutoCompletionStopInProgress, isAutoPaused, markToolEnd, markToolStart, recordToolInvocationError } from "../auto-runtime-state.js";
+import {
+  clearToolInvocationError,
+  getAutoRuntimeSnapshot,
+  getSourceObservationStore,
+  isAutoActive,
+  isAutoCompletionStopInProgress,
+  isAutoPaused,
+  markToolEnd,
+  markToolStart,
+  recordToolInvocationError,
+} from "../auto-runtime-state.js";
 
 import { checkToolCallLoop, resetToolCallLoopGuard } from "./tool-call-loop-guard.js";
 import { maybePauseAutoForApprovalGate, resetPendingGatePauseGuard } from "./pending-gate-pause.js";
@@ -39,6 +49,7 @@ import { registerPlanMilestoneSchemaRecovery } from "./plan-milestone-schema-rec
 import { AUTO_UNIT_SCOPED_TOOLS, RUN_UAT_BROWSER_TOOL_NAMES, isWorkflowAliasTool } from "../auto-unit-tool-scope.js";
 import { filterToolsForProvider } from "../model-router.js";
 import { RUN_UAT_READ_ONLY_TOOL_NAMES, RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.js";
+import { injectSourceContextBlockIntoPayload } from "../source-observations.js";
 
 let approvalQuestionAbortInFlight = false;
 
@@ -1232,6 +1243,19 @@ export function registerHooks(
     if (isAutoActive() && typeof event.toolCallId === "string") {
       markToolEnd(event.toolCallId);
     }
+    if (isAutoActive() && event.toolName === "read" && !event.isError) {
+      const dash = getAutoRuntimeSnapshot();
+      if (dash.currentUnit) {
+        const store = getSourceObservationStore();
+        store.beginUnit({
+          unitType: dash.currentUnit.type,
+          unitId: dash.currentUnit.id,
+          startedAt: dash.currentUnit.startedAt,
+          basePath: dash.basePath || contextBasePath(ctx),
+        });
+        store.observeRead(event.input);
+      }
+    }
     if (isAutoActive() && event.isError) {
       const resultPayload = ("result" in event ? event.result : undefined) as any;
       const errorText = typeof resultPayload === "string"
@@ -1423,6 +1447,14 @@ export function registerHooks(
       const input = payload.input;
       if (Array.isArray(input)) {
         payload.input = truncateResponsesInputResultItems(input as any, maxChars);
+      }
+    } catch { /* non-fatal */ }
+
+    try {
+      const sourceContextBlock = getSourceObservationStore().renderActiveBlock();
+      if (sourceContextBlock) {
+        const nextPayload = injectSourceContextBlockIntoPayload(payload, sourceContextBlock);
+        Object.assign(payload, nextPayload);
       }
     } catch { /* non-fatal */ }
 
