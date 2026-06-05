@@ -151,7 +151,9 @@ export function addMessageToChat(host: InteractiveModeDelegateHost, message: Age
 				break;
 			}
 			case "assistant": {
-				if (!hasAssistantVisibleContent(message.content, host.hideThinkingBlock)) break;
+				const hasToolBlocks = message.content.some((c: any) => isToolContentBlock(c));
+				const isAbortOrError = message.stopReason === "aborted" || message.stopReason === "error";
+				if (!hasAssistantVisibleContent(message.content, host.hideThinkingBlock) && !(isAbortOrError && !hasToolBlocks)) break;
 				const connectedToUser = chatTurnFollowsUser(host.chatContainer.children);
 				const assistantComponent = new AssistantMessageComponent(
 					message,
