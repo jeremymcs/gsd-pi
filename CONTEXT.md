@@ -44,7 +44,13 @@
 - **Worktree Lifecycle module**: module that owns worktree create/enter/teardown/merge verbs, `s.basePath` mutation, and `process.chdir` discipline. Sole owner of these mutations across single-loop and parallel callers.
 - **Worktree State Projection module**: module that owns the direction-and-rules of state file flow between project root and auto-worktree. Encodes the bug-hardened invariants (additive milestone copy, ASSESSMENT verdict overwrite, completed-units forward-sync, WAL/SHM cleanup) that `syncProjectRootToWorktree` and `syncStateToProjectRoot` carry today.
 - **Recovery Classification module**: module that maps provider, tool, policy, git, worktree, runtime, and reconciliation-drift failures to a Recovery decision.
-- **Tool Contract module**: module that keeps Unit prompts, tool schemas, tool policy, and pre-dispatch validation aligned.
+- **Tool Contract module**: module that keeps Unit prompts, tool schemas, tool policy, source-observation invariants, and pre-dispatch validation aligned.
+- **Observation Budgeting**: context-management policy for what prior tool observations remain available to a Provider on later turns. Distinct from Display Truncation: Observation Budgeting changes model-visible context, while Display Truncation changes only the user-visible terminal surface.
+- **Display Truncation**: rendering policy that hides or collapses tool output in the terminal without changing the underlying tool result available to the session.
+- **File Observation**: a durable record that a source file was observed, including enough identity and coverage metadata to let a Unit reason from the file without repeatedly reconstructing it from line windows.
+- **Whole-File Observation**: a File Observation whose source file is small enough to be retained as complete source context for the active Unit. The initial threshold is the read-tool cap: at most 50KB and at most 2000 lines. A narrow read of an under-threshold file auto-upgrades the File Observation to whole-file coverage in the background while preserving the requested tool result shape. After the Unit closes, the observation may degrade to metadata or summary for downstream Units.
+- **Source-observation set**: the files whose observations are protected from lossy Observation Budgeting for the active Unit. Files enter the set when declared by the Unit plan or when successfully read under the Whole-File Observation threshold. For `execute-task`, plan-declared files means `task.files` plus concrete filesystem-looking entries from `task.inputs`, not `expectedOutput`. Plan-declared files are preloaded as Whole-File Observations before the Unit's first Provider turn when they fit the threshold; later read calls can add discovered files.
+- **Source Context Block**: provider-payload context generated from the active Unit's Source-observation set. It is attached deliberately during Provider request assembly instead of relying on historical read-tool results to survive Observation Budgeting unchanged. Files that cannot become Whole-File Observations are represented with explicit unavailable statuses, such as missing, binary/image, over-threshold, glob, directory, or unresolved selector, unless existing pre-execution validation already blocks the Unit.
 - **Provider**: a model execution path inside the Pi/GSD agent loop, selected for a session or Unit and subject to GSD's tool and capability contracts.
 - **External MCP Client**: an AI client outside the Pi/GSD agent loop that connects to project MCP servers and owns discovery, startup, and presentation of those servers.
 - **Browser Automation Contract**: the GSD capability contract for real browser inspection, interaction, assertions, screenshots, and runtime evidence. The contract is distinct from the transport that exposes it.
@@ -90,6 +96,10 @@ Dispatch remains responsible for selecting the next Unit from reconciled state. 
 - Thinking level should be configurable per Phase alongside the existing per-Phase model selection, resolved as a `(model, thinking)` pair across a hybrid config (`models.<phase>.thinking` and a separate `thinking:` block). The eight main-loop Phases apply it via `setThinkingLevel` at dispatch; the `subagent` Phase applies it via prompt injection + the subagent tool's `--thinking` subprocess flag (#508). The `execute-task` Thinking Floor protects only the session/default path; explicit config punches through. Unsupported levels are capability-clamped at dispatch, never sent to the provider.
 
   See `docs/dev/ADR-026-per-phase-thinking-level.md`.
+
+- Active Units should retain source files through Source Context Blocks generated from File Observations, not by relying on old `read` tool results to survive Observation Budgeting. Tool Contract owns the source-observation invariant; Provider request assembly injects the active Unit's protected Source Context Block.
+
+  See `docs/dev/ADR-027-source-observation-context-block.md`.
 
 - Foreground `/gsd next` and `/gsd auto` runs follow **Closeout Boundary Stop**: after the first durable task, slice, or milestone closeout boundary, the foreground terminal preserves the closeout transcript as the final visible surface instead of replacing it with a terminal roll-up widget. Headless runs may still emit durable terminal completion notifications/widgets for automation.
 
@@ -194,7 +204,7 @@ Recent triage showed repeated failures concentrated in orchestration state coher
 
 - Files: `unit-context-manifest.ts`, prompts under `prompts/`, `bootstrap/write-gate.ts`, `bootstrap/exec-tools.ts`, `workflow-tool-executors.ts`, `pre-execution-checks.ts`, `tools/plan-slice.ts`
 - Problem: Unit prompts, tool schemas, and tool policy drift independently. The model can be instructed to do work the policy blocks, or call a schema value the tool rejects. Some validation waits until after planning artifacts are committed.
-- Refactor target: compile a Unit Tool Contract before dispatch that includes prompt obligations, allowed tools, schema enum values, validation requirements, and closeout tools.
+- Refactor target: compile a Unit Tool Contract before dispatch that includes prompt obligations, allowed tools, schema enum values, validation requirements, closeout tools, and source-observation invariants.
 - Leverage: prompt authors and dispatch code get one reviewable contract per Unit type.
 - Locality: prompt wording, policy gates, schema descriptions, and planner-time validation stop drifting across files.
 - Test focus: prompt/policy/schema parity tests and planner tool validation tests for concrete task inputs.
