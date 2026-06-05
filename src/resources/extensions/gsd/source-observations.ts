@@ -26,11 +26,13 @@ export interface SourceObservationUnit {
   basePath: string;
 }
 
+export type SourceObservationSource = "plan" | "read" | "mutation";
+
 export interface SourceObservation {
   path: string;
   absolutePath: string | null;
   status: SourceObservationStatus;
-  source: "plan" | "read";
+  source: SourceObservationSource;
   text?: string;
   bytes?: number;
   lines?: number;
@@ -82,6 +84,13 @@ export class SourceObservationStore {
     this.observePath(rawPath, "read");
   }
 
+  observeMutation(input: { path?: unknown; file_path?: unknown; [key: string]: unknown }): void {
+    if (!this.active) return;
+    const rawPath = readPathFromInput(input);
+    if (!rawPath.trim()) return;
+    this.observePath(rawPath, "mutation", { replaceExisting: true });
+  }
+
   renderActiveBlock(): string | null {
     if (!this.active || this.active.observations.size === 0) return null;
     const observations = [...this.active.observations.values()]
@@ -129,12 +138,16 @@ export class SourceObservationStore {
       current.basePath === unit.basePath;
   }
 
-  private observePath(rawPath: string, source: "plan" | "read"): void {
+  private observePath(
+    rawPath: string,
+    source: SourceObservationSource,
+    options: { replaceExisting?: boolean } = {},
+  ): void {
     if (!this.active) return;
     const observation = observeSourcePath(this.active.unit.basePath, rawPath, source);
     const key = observation.absolutePath ?? `${observation.status}:${observation.path}`;
     const existing = this.active.observations.get(key);
-    if (!existing || observation.status === "whole" || existing.status !== "whole") {
+    if (options.replaceExisting || !existing || observation.status === "whole" || existing.status !== "whole") {
       this.active.observations.set(key, observation);
     }
   }
@@ -158,7 +171,7 @@ export function planDeclaredSourceEntries(
 export function observeSourcePath(
   basePath: string,
   rawPath: string,
-  source: "plan" | "read",
+  source: SourceObservationSource,
 ): SourceObservation {
   const normalizedRaw = normalizeFilePath(rawPath.trim());
   const displayPath = normalizedRaw || rawPath.trim();
@@ -269,7 +282,7 @@ function unavailable(
   path: string,
   absolutePath: string | null,
   status: Exclude<SourceObservationStatus, "whole">,
-  source: "plan" | "read",
+  source: SourceObservationSource,
   reason?: string,
 ): SourceObservation {
   return { path, absolutePath, status, source, reason };

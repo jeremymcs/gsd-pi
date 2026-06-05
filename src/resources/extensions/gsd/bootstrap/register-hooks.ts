@@ -485,6 +485,36 @@ function contextBasePath(ctx?: { cwd?: string }): string {
   return typeof ctx?.cwd === "string" ? ctx.cwd : process.cwd();
 }
 
+function beginSourceObservationStoreForCurrentUnit(
+  ctx?: { cwd?: string },
+): ReturnType<typeof getSourceObservationStore> | null {
+  if (!isAutoActive()) return null;
+  const dash = getAutoRuntimeSnapshot();
+  if (!dash.currentUnit) return null;
+
+  const store = getSourceObservationStore();
+  store.beginUnit({
+    unitType: dash.currentUnit.type,
+    unitId: dash.currentUnit.id,
+    startedAt: dash.currentUnit.startedAt,
+    basePath: dash.basePath || contextBasePath(ctx),
+  });
+  return store;
+}
+
+function refreshSourceObservationAfterMutation(
+  canonicalName: string,
+  input: unknown,
+  ctx?: { cwd?: string },
+): void {
+  if (canonicalName !== "edit" && canonicalName !== "write") return;
+  if (!input || typeof input !== "object") return;
+
+  const store = beginSourceObservationStoreForCurrentUnit(ctx);
+  if (!store) return;
+  store.observeMutation(input as { path?: unknown; file_path?: unknown });
+}
+
 function activateDeferredApprovalGate(basePath: string): void {
   if (deferredApprovalGate?.basePath !== basePath) return;
   setPendingGate(deferredApprovalGate.gateId, basePath);
@@ -1243,18 +1273,15 @@ export function registerHooks(
     if (isAutoActive() && typeof event.toolCallId === "string") {
       markToolEnd(event.toolCallId);
     }
-    if (isAutoActive() && event.toolName === "read" && !event.isError) {
-      const dash = getAutoRuntimeSnapshot();
-      if (dash.currentUnit) {
-        const store = getSourceObservationStore();
-        store.beginUnit({
-          unitType: dash.currentUnit.type,
-          unitId: dash.currentUnit.id,
-          startedAt: dash.currentUnit.startedAt,
-          basePath: dash.basePath || contextBasePath(ctx),
-        });
+    const toolName = canonicalToolName(event.toolName);
+    if (isAutoActive() && toolName === "read" && !event.isError) {
+      const store = beginSourceObservationStoreForCurrentUnit(ctx);
+      if (store) {
         store.observeRead(event.input);
       }
+    }
+    if (!event.isError) {
+      refreshSourceObservationAfterMutation(toolName, event.input, ctx);
     }
     if (isAutoActive() && event.isError) {
       const resultPayload = ("result" in event ? event.result : undefined) as any;
@@ -1271,7 +1298,6 @@ export function registerHooks(
     } else if (isAutoActive()) {
       clearToolInvocationError();
     }
-    const toolName = canonicalToolName(event.toolName);
     if (toolName !== "ask_user_questions") return;
     const basePath = contextBasePath(ctx);
     const milestoneId = await getDiscussionMilestoneIdFor(basePath);

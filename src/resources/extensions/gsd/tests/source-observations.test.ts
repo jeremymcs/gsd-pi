@@ -117,6 +117,39 @@ test("narrow reads of under-threshold files auto-upgrade to whole-file observati
   assert.match(block, /line three/);
 });
 
+test("successful file mutations refresh active whole-file observations", () => {
+  const basePath = tempProject();
+  writeFileSync(join(basePath, "app.ts"), "export const value = 'before';\n");
+
+  const store = beginStore(basePath);
+  store.observeRead({ path: "app.ts" });
+
+  assert.match(store.renderActiveBlock() ?? "", /before/);
+
+  writeFileSync(join(basePath, "app.ts"), "export const value = 'after';\n");
+  store.observeMutation({ path: "app.ts" });
+
+  const block = store.renderActiveBlock() ?? "";
+  assert.match(block, /after/);
+  assert.doesNotMatch(block, /before/);
+});
+
+test("successful writes promote missing plan observations to whole files", () => {
+  const basePath = tempProject();
+  const store = beginStore(basePath);
+  store.observePlanTask(makeTask({ files: ["generated.ts"] }));
+
+  assert.match(store.renderActiveBlock() ?? "", /generated\.ts: missing/);
+
+  writeFileSync(join(basePath, "generated.ts"), "export const generated = true;\n");
+  store.observeMutation({ path: "generated.ts" });
+
+  const block = store.renderActiveBlock() ?? "";
+  assert.match(block, /#### generated\.ts/);
+  assert.match(block, /export const generated = true;/);
+  assert.doesNotMatch(block, /generated\.ts: missing/);
+});
+
 test("over-threshold files are explicit unavailable observations", () => {
   const basePath = tempProject();
   writeFileSync(join(basePath, "large.txt"), "a".repeat(51 * 1024));
