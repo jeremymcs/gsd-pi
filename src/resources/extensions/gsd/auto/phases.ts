@@ -85,7 +85,7 @@ import {
   supportsStructuredQuestions,
 } from "../workflow-mcp.js";
 import { prepareWorkflowMcpForProject } from "../workflow-mcp-auto-prep.js";
-import { getToolBaselineSnapshot } from "../auto-model-selection.js";
+import { getToolBaselineSnapshot, applyThinkingLevelForModel, floorThinkingLevelForUnit } from "../auto-model-selection.js";
 import type { DispatchAction } from "../auto-dispatch.js";
 import { resolveManifest } from "../unit-context-manifest.js";
 import { createWorktreeSafetyModule, type WorktreeSafetyResult } from "../worktree-safety.js";
@@ -2250,9 +2250,16 @@ export async function runUnitPhase(
     if (match) {
       const ok = await pi.setModel(match, { persist: false });
       if (ok) {
-        if (s.autoModeStartThinkingLevel) {
-          pi.setThinkingLevel(s.autoModeStartThinkingLevel);
-        }
+        // Apply the per-phase reasoning effort selectAndApplyModel resolved for
+        // this unit — not the auto-start session snapshot — but route it through
+        // the same floor + capability-clamp pipeline against the *hook* model
+        // (ADR-026). The hook override can pick a different model family than the
+        // one selectAndApplyModel clamped against, so re-clamping here prevents
+        // sending an unsupported level; the floor fills in when no phase level
+        // resolved so a hook-overridden execute-task still meets the floor.
+        const hookThinkingBase = modelResult.appliedThinkingLevel
+          ?? floorThinkingLevelForUnit(unitType, s.autoModeStartThinkingLevel);
+        applyThinkingLevelForModel(pi, hookThinkingBase, match, ctx);
         s.currentUnitModel = match as AutoSession["currentUnitModel"];
         ctx.ui.notify(`Hook model override: ${match.provider}/${match.id}`, "info");
       } else {
