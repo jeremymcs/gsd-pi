@@ -17,8 +17,9 @@ import {
 } from "../gsd-db.js";
 import { GATE_REGISTRY } from "../gate-registry.js";
 import { generateRequirementsMd, saveArtifactToDb } from "../db-writer.js";
-import { clearPathCache, resolveGsdPathContract, resolveMilestoneFile, resolveSliceFile } from "../paths.js";
+import { clearPathCache, relSliceFile, resolveGsdPathContract, resolveMilestoneFile, resolveSliceFile } from "../paths.js";
 import { saveFile, clearParseCache } from "../files.js";
+import { buildManualValidationGuidance, resolveCanonicalMilestoneRoot } from "../worktree-manager.js";
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import type { CompleteMilestoneParams } from "./complete-milestone.js";
@@ -1337,7 +1338,12 @@ function escapeMarkdownTableCell(value: unknown): string {
     .replace(/\r?\n/g, "<br>");
 }
 
-function renderUatAssessment(params: UatResultSaveParams, attempt: number, gateVerdict: "pass" | "flag"): string {
+function renderUatAssessment(
+  params: UatResultSaveParams,
+  attempt: number,
+  gateVerdict: "pass" | "flag",
+  basePath: string,
+): string {
   const lines = [
     "---",
     `sliceId: ${params.sliceId}`,
@@ -1372,6 +1378,27 @@ function renderUatAssessment(params: UatResultSaveParams, attempt: number, gateV
     "",
     `Aggregate UAT gate saved as ${gateVerdict}.`,
   ];
+
+  // When any check still needs a human, point them at the exact checkout to
+  // validate — critical for worktree milestones whose code sits under a hidden
+  // `.gsd/worktrees/` path the reviewer would otherwise have to hunt for.
+  const hasHuman = params.checks.some((check) => check.result === "NEEDS-HUMAN");
+  if (hasHuman) {
+    const guidance = buildManualValidationGuidance(basePath, params.milestoneId, {
+      uatPath: relSliceFile(basePath, params.milestoneId, params.sliceId, "UAT"),
+    });
+    if (guidance) {
+      lines.push(
+        "",
+        "## Manual Validation",
+        "",
+        "One or more checks are marked `NEEDS-HUMAN` and require a person to validate:",
+        "",
+        ...guidance.split("\n").map((line) => `- ${line}`),
+      );
+    }
+  }
+
   return `${lines.join("\n")}\n`;
 }
 
@@ -1424,7 +1451,7 @@ export async function executeUatResultSave(
     }
     const gateVerdict = params.verdict === "PASS" ? "pass" : "flag";
     const rationale = params.notes ?? `UAT ${params.verdict} for ${params.sliceId}.`;
-    const assessment = renderUatAssessment(params, attempt, gateVerdict);
+    const assessment = renderUatAssessment(params, attempt, gateVerdict, basePath);
     const summary = await executeSummarySave(
       {
         milestone_id: params.milestoneId,
@@ -1468,8 +1495,20 @@ export async function executeUatResultSave(
       evaluatedAt,
     });
     invalidateStateCache();
+    // Surface where to validate when checks are left for a human, so the path
+    // (often a buried worktree checkout) reaches the reviewer, not just the file.
+    const hasHuman = params.checks.some((check) => check.result === "NEEDS-HUMAN");
+    const manualGuidance = hasHuman
+      ? buildManualValidationGuidance(basePath, params.milestoneId, {
+          uatPath: relSliceFile(basePath, params.milestoneId, params.sliceId, "UAT"),
+        })
+      : null;
+    const savedText = `UAT result saved for ${params.milestoneId}/${params.sliceId}: ${params.verdict}`;
     return {
-      content: [{ type: "text", text: `UAT result saved for ${params.milestoneId}/${params.sliceId}: ${params.verdict}` }],
+      content: [{
+        type: "text",
+        text: manualGuidance ? `${savedText}\n\nManual validation needed:\n${manualGuidance}` : savedText,
+      }],
       details: {
         operation: "save_uat_result",
         milestoneId: params.milestoneId,
@@ -1479,6 +1518,9 @@ export async function executeUatResultSave(
         attempt,
         attemptPath,
         recommendedNextUnit: params.verdict === "PASS" ? null : "reactive-execute",
+        ...(hasHuman
+          ? { manualValidationPath: resolveCanonicalMilestoneRoot(basePath, params.milestoneId) }
+          : {}),
       },
     };
   } catch (err) {

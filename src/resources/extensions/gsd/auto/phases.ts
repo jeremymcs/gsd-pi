@@ -35,6 +35,8 @@ import { detectStuck } from "./detect-stuck.js";
 import { runUnit } from "./run-unit.js";
 import { debugLog } from "../debug-logger.js";
 import { resolveWorktreeProjectRoot, normalizeWorktreePathForCompare } from "../worktree-root.js";
+import { buildManualValidationGuidance } from "../worktree-manager.js";
+import { relSliceFile } from "../paths.js";
 import { classifyProject } from "../detection.js";
 import { MergeConflictError } from "../git-service.js";
 import { setCurrentPhase, clearCurrentPhase } from "../../shared/gsd-phase-state.js";
@@ -2956,10 +2958,21 @@ export async function runFinalize(
   }
 
   if (pauseAfterUatDispatch) {
-    ctx.ui.notify(
-      "UAT requires human execution. Auto-mode will pause after this unit writes the result file.",
-      "info",
-    );
+    const pauseMid = iterData.mid;
+    const pauseSliceId = pauseMid && iterData.unitId.startsWith(`${pauseMid}/`)
+      ? iterData.unitId.slice(pauseMid.length + 1)
+      : undefined;
+    const guidance = pauseMid
+      ? buildManualValidationGuidance(s.basePath, pauseMid, {
+          uatPath: pauseSliceId
+            ? relSliceFile(s.basePath, pauseMid, pauseSliceId, "UAT")
+            : undefined,
+        })
+      : null;
+    const pauseMessage = guidance
+      ? `UAT requires human execution. Auto-mode will pause after this unit writes the result file.\n\n${guidance}`
+      : "UAT requires human execution. Auto-mode will pause after this unit writes the result file.";
+    ctx.ui.notify(pauseMessage, "info");
     await deps.pauseAuto(ctx, pi);
     debugLog("autoLoop", { phase: "exit", reason: "uat-pause" });
     clearFinalizingUnit();

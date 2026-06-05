@@ -836,6 +836,135 @@ test("executeUatResultSave merges canonical plan ID and read-only tools when pre
   }
 });
 
+test("executeUatResultSave surfaces the worktree validation path for NEEDS-HUMAN checks", async () => {
+  const base = makeTmpBase();
+  const worktree = join(base, ".gsd", "worktrees", "M001");
+  const worktreeExecDir = join(worktree, ".gsd", "exec");
+  const evidenceId = "uat-human-validation-evidence";
+  try {
+    openTestDb(base);
+    seedMilestone("M001", "Milestone One");
+    seedSlice("M001", "S07", "complete");
+    mkdirSync(worktreeExecDir, { recursive: true });
+    writeFileSync(
+      join(worktreeExecDir, `${evidenceId}.meta.json`),
+      JSON.stringify({
+        id: evidenceId,
+        metadata: {
+          kind: "uat_exec",
+          milestoneId: "M001",
+          sliceId: "S07",
+          checkId: "UAT-01",
+          intent: "uat-runtime-check",
+        },
+      }),
+      "utf-8",
+    );
+
+    const result = await inProjectDir(worktree, () => executeUatResultSave({
+      milestoneId: "M001",
+      sliceId: "S07",
+      uatType: "human-experience",
+      verdict: "PASS",
+      checks: [
+        {
+          id: "UAT-01",
+          description: "Service boots and renders the dashboard",
+          mode: "runtime",
+          result: "PASS",
+          evidence: [{ kind: "gsd_uat_exec", ref: evidenceId }],
+          notes: "Boot check passed.",
+        },
+        {
+          id: "UAT-02",
+          description: "Dashboard layout feels balanced",
+          mode: "human-follow-up",
+          result: "NEEDS-HUMAN",
+          nonAutomatable: true,
+          notes: "Open the app and eyeball the spacing.",
+        },
+      ],
+      notes: "Automatable checks passed; layout taste needs a human.",
+    } as unknown as Parameters<typeof executeUatResultSave>[0], worktree));
+
+    assert.equal(result.isError, undefined);
+    assert.equal(result.details.verdict, "PASS");
+    // The reviewer needs the buried worktree checkout path, not just the file.
+    assert.equal(result.details.manualValidationPath, worktree);
+    const returnedText = (result.content[0] as { text: string }).text;
+    assert.match(returnedText, /Manual validation needed/);
+    assert.ok(returnedText.includes(worktree), "tool return should include the worktree path");
+
+    const assessment = readFileSync(
+      join(base, ".gsd", "milestones", "M001", "slices", "S07", "S07-ASSESSMENT.md"),
+      "utf-8",
+    );
+    assert.match(assessment, /## Manual Validation/);
+    assert.ok(assessment.includes(worktree), "assessment should include the worktree checkout path");
+    assert.match(assessment, /git worktree/);
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
+test("executeUatResultSave omits manual-validation guidance when no human checks remain", async () => {
+  const base = makeTmpBase();
+  const worktree = join(base, ".gsd", "worktrees", "M001");
+  const worktreeExecDir = join(worktree, ".gsd", "exec");
+  const evidenceId = "uat-no-human-evidence";
+  try {
+    openTestDb(base);
+    seedMilestone("M001", "Milestone One");
+    seedSlice("M001", "S08", "complete");
+    mkdirSync(worktreeExecDir, { recursive: true });
+    writeFileSync(
+      join(worktreeExecDir, `${evidenceId}.meta.json`),
+      JSON.stringify({
+        id: evidenceId,
+        metadata: {
+          kind: "uat_exec",
+          milestoneId: "M001",
+          sliceId: "S08",
+          checkId: "UAT-01",
+          intent: "uat-artifact-check",
+        },
+      }),
+      "utf-8",
+    );
+
+    const result = await inProjectDir(worktree, () => executeUatResultSave({
+      milestoneId: "M001",
+      sliceId: "S08",
+      uatType: "artifact-driven",
+      verdict: "PASS",
+      checks: [{
+        id: "UAT-01",
+        description: "Config file exists",
+        mode: "artifact",
+        result: "PASS",
+        evidence: [{ kind: "gsd_uat_exec", ref: evidenceId }],
+        notes: "Artifact present.",
+      }],
+      notes: "Fully automated pass.",
+    } as unknown as Parameters<typeof executeUatResultSave>[0], worktree));
+
+    assert.equal(result.isError, undefined);
+    assert.equal(result.details.manualValidationPath, undefined);
+    const returnedText = (result.content[0] as { text: string }).text;
+    assert.equal(returnedText.includes("Manual validation needed"), false);
+
+    const assessment = readFileSync(
+      join(base, ".gsd", "milestones", "M001", "slices", "S08", "S08-ASSESSMENT.md"),
+      "utf-8",
+    );
+    assert.equal(assessment.includes("## Manual Validation"), false);
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
 test("executeUatResultSave rejects saved UAT without fresh UAT-owned evidence", async () => {
   const base = makeTmpBase();
   const worktree = join(base, ".gsd", "worktrees", "M001");

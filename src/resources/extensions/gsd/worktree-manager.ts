@@ -259,6 +259,38 @@ export function resolveCanonicalMilestoneRoot(
   return wtPath;
 }
 
+/**
+ * Build human-facing guidance for manually validating a milestone's work.
+ *
+ * When a milestone runs in a git worktree, its checkout lives under the hidden
+ * `.gsd/worktrees/<MID>/` path that a human can't easily discover. The UAT
+ * pause/handoff and the saved assessment use this to tell the human exactly
+ * where to `cd` to run or inspect the app before signing off on NEEDS-HUMAN
+ * checks, rather than leaving them to hunt for a buried path.
+ *
+ * Returns null when no milestone id is available.
+ */
+export function buildManualValidationGuidance(
+  basePath: string,
+  milestoneId: string,
+  opts: { uatPath?: string } = {},
+): string | null {
+  if (!milestoneId) return null;
+  const validationRoot = resolveCanonicalMilestoneRoot(basePath, milestoneId);
+  const inWorktree = validationRoot.includes(`${sep}.gsd${sep}worktrees${sep}`);
+  const lines: string[] = [`Validate the work here: ${validationRoot}`];
+  if (inWorktree) {
+    lines.push(
+      "This milestone runs in a git worktree, so the code lives under the hidden " +
+        `\`.gsd/worktrees/\` path. Open it with: cd "${validationRoot}"`,
+    );
+  }
+  if (opts.uatPath) {
+    lines.push(`Follow the UAT checklist at: ${opts.uatPath}`);
+  }
+  return lines.join("\n");
+}
+
 // ─── Core Operations ───────────────────────────────────────────────────────
 
 /**
