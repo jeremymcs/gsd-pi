@@ -9,6 +9,8 @@ import {
   openDatabase,
   closeDatabase,
   _getAdapter,
+  getArtifact,
+  getAssessment,
   insertAssessment,
   upsertRequirement,
   getAllMilestones,
@@ -659,6 +661,12 @@ test("executeUatResultSave accepts gsd_uat_exec evidence written in a milestone 
     assert.ok(assessment.includes(`worktreeRoot: ${worktree}`));
     assert.match(assessment, /Runtime path C:\\\\tmp\\\|uat evidence/);
     assert.match(assessment, /backslash \\\\ and pipe \\\|/);
+
+    const artifactPath = "milestones/M001/slices/S02/S02-ASSESSMENT.md";
+    const assessmentPath = `.gsd/${artifactPath}`;
+    assert.equal(getArtifact(artifactPath)?.artifact_type, "ASSESSMENT");
+    assert.equal(getAssessment(assessmentPath)?.scope, "run-uat");
+    assert.equal(getAssessment(assessmentPath)?.status, "pass");
   } finally {
     closeDatabase();
     cleanup(base);

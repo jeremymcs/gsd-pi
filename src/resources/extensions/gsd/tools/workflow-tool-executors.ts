@@ -10,6 +10,7 @@ import {
   getMilestone,
   getSliceStatusSummary,
   getSliceTaskCounts,
+  insertAssessment,
   insertGateRun,
   readTransaction,
   saveGateResult,
@@ -17,7 +18,7 @@ import {
 } from "../gsd-db.js";
 import { GATE_REGISTRY } from "../gate-registry.js";
 import { generateRequirementsMd, saveArtifactToDb } from "../db-writer.js";
-import { clearPathCache, resolveGsdPathContract, resolveMilestoneFile, resolveSliceFile } from "../paths.js";
+import { clearPathCache, relSliceFile, resolveGsdPathContract, resolveMilestoneFile, resolveSliceFile } from "../paths.js";
 import { saveFile, clearParseCache } from "../files.js";
 import { unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -997,6 +998,16 @@ export async function executeUatResultSave(
       basePath,
     );
     if (summary.isError) return summary;
+    const assessmentPath = relSliceFile(basePath, run.params.milestoneId, run.params.sliceId, "ASSESSMENT");
+    insertAssessment({
+      path: assessmentPath,
+      milestoneId: run.params.milestoneId,
+      sliceId: run.params.sliceId,
+      taskId: null,
+      status: run.params.verdict.toLowerCase(),
+      scope: "run-uat",
+      fullContent: run.assessment,
+    });
     const attemptPath = await saveUatAttemptArtifact(basePath, run);
     upsertQualityGate({
       milestoneId: run.params.milestoneId,

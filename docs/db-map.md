@@ -50,7 +50,7 @@ After commit: regenerate markdown artifacts → write to disk → invalidate cac
 
 ## 2. Schema Version History
 
-Current version: **V28**
+Current version: **V29**
 
 | Version | What Changed |
 |---------|-------------|
@@ -82,6 +82,7 @@ Current version: **V28**
 | V26 | milestone_commit_attributions |
 | V27 | artifacts.content_hash (SHA-256 of full_content, computed on every insertArtifact) |
 | V28 | memories.last_hit_at; incrementMemoryHitCount sets it; queryMemoriesRanked applies time-decay (1.0 → 0.7 floor over 90 days) |
+| V29 | slices.target_repositories and tasks.target_repositories for multi-repository planning |
 
 ---
 
@@ -112,7 +113,6 @@ made_by        TEXT NOT NULL DEFAULT 'agent'     ← V4
 source         TEXT NOT NULL DEFAULT 'discussion' ← V16
 superseded_by  TEXT DEFAULT NULL
 ```
-- Index: `idx_memories_active` (superseded_by)
 - View: `active_decisions` WHERE superseded_by IS NULL
 
 ---
@@ -196,6 +196,7 @@ success_criteria     TEXT NOT NULL DEFAULT ''           ← V8
 proof_level          TEXT NOT NULL DEFAULT ''           ← V8
 integration_closure  TEXT NOT NULL DEFAULT ''           ← V8
 observability_impact TEXT NOT NULL DEFAULT ''           ← V8
+target_repositories TEXT NOT NULL DEFAULT '[]'          ← V29, JSON
 sequence             INTEGER DEFAULT 0                  ← V9
 replan_triggered_at  TEXT DEFAULT NULL                  ← V10
 is_sketch            INTEGER NOT NULL DEFAULT 0         ← V16
@@ -239,6 +240,7 @@ inputs                      TEXT NOT NULL DEFAULT '[]'         ← V8, JSON
 expected_output             TEXT NOT NULL DEFAULT '[]'         ← V8, JSON
 observability_impact        TEXT NOT NULL DEFAULT ''           ← V8
 full_plan_md                TEXT NOT NULL DEFAULT ''           ← V11
+target_repositories         TEXT NOT NULL DEFAULT '[]'         ← V29, JSON
 sequence                    INTEGER DEFAULT 0                  ← V9
 PRIMARY KEY (milestone_id, slice_id, id)
 FOREIGN KEY (milestone_id, slice_id) → slices(milestone_id, id)
@@ -662,6 +664,23 @@ runtime_kv  (soft state KV)
 
 ---
 
+## 4b. Recovery And Worktree Merge Surfaces
+
+`.gsd/state-manifest.json` snapshots DB-backed correctness state: requirements,
+artifacts, milestones, slices, tasks, decisions, replan history, assessments,
+quality gates, verification evidence, and milestone commit attributions. Restore
+rebuilds decision mirror memories from the restored decisions and preserves
+optional rows when reading older manifests that predate the extended arrays.
+
+`reconcileWorktreeDb` merges hidden-worktree correctness rows back into the main
+DB, including hierarchy, requirements, artifacts, memories, replan history,
+assessments, quality gates, slice dependencies, verification evidence, gate
+runs, and milestone commit attributions. Runtime-only/audit substrates such as
+`runtime_kv`, `turn_git_transactions`, `audit_events`, and `audit_turn_index`
+remain outside manifest restore.
+
+---
+
 ## 5. Complete gsd_* Tool → Table Map
 
 | Tool | Tables READ | Tables WRITTEN | Disk Artifacts |
@@ -676,8 +695,9 @@ runtime_kv  (soft state KV)
 | `gsd_plan_task` | slices, tasks | tasks | T##-PLAN.md |
 | `gsd_task_complete` | tasks, slices | tasks, verification_evidence | T##-SUMMARY.md; toggles checkbox in S##-PLAN.md |
 | `gsd_slice_complete` | tasks, slices | slices, tasks (cascade skipped) | S##-SUMMARY.md, S##-UAT.md; toggles checkpoint in ROADMAP.md |
+| `gsd_uat_result_save` | slices, artifacts | artifacts, assessments, quality_gates, gate_runs | S##-ASSESSMENT.md; UAT attempt JSON |
 | `gsd_complete_milestone` | milestones, slices, tasks | milestones | M##-SUMMARY.md |
-| `gsd_validate_milestone` | milestones, slices, tasks | assessments | VALIDATION.md |
+| `gsd_validate_milestone` | milestones, slices, tasks | assessments, quality_gates, gate_runs | VALIDATION.md |
 | `gsd_reassess_roadmap` | milestones, slices | milestones, slices, assessments | ROADMAP.md, ASSESSMENT.md |
 | `gsd_replan_slice` | slices, tasks | slices, tasks, replan_history, quality_gates | S##-PLAN.md, S##-REPLAN.md |
 | `gsd_skip_slice` | slices, tasks | slices, tasks | STATE.md (via rebuildState) |

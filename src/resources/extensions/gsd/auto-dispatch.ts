@@ -23,6 +23,7 @@ import {
   getPendingGatesForTurn,
   markPendingGatesOmittedForTurn,
   getMilestone,
+  insertArtifact,
   insertAssessment,
   setSliceSketchFlag,
   transaction,
@@ -439,6 +440,53 @@ export function findMissingSummaries(basePath: string, mid: string): string[] {
     .map(s => s.id);
 }
 
+function stringField(row: Record<string, unknown> | null, key: string): string | null {
+  const value = row?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+function stripGsdPrefix(path: string): string {
+  return path.startsWith(".gsd/") ? path.slice(".gsd/".length) : path;
+}
+
+function persistSliceAssessmentBackfill(
+  assessmentRelPath: string,
+  mid: string,
+  sliceId: string,
+  content: string,
+): void {
+  const artifactPath = stripGsdPrefix(assessmentRelPath);
+  const existingAssessment =
+    getAssessment(assessmentRelPath) ??
+    getAssessment(artifactPath);
+  const scope = stringField(existingAssessment, "scope") ?? "run-uat";
+  const status = stringField(existingAssessment, "status") ??
+    extractVerdict(content)?.toLowerCase() ??
+    "unknown";
+
+  transaction(() => {
+    insertArtifact({
+      path: artifactPath,
+      artifact_type: "ASSESSMENT",
+      milestone_id: mid,
+      slice_id: sliceId,
+      task_id: null,
+      full_content: content,
+    });
+    if (!getAssessment(assessmentRelPath)) {
+      insertAssessment({
+        path: assessmentRelPath,
+        milestoneId: mid,
+        sliceId,
+        taskId: null,
+        status,
+        scope,
+        fullContent: content,
+      });
+    }
+  });
+}
+
 function backfillMissingAssessmentsFromSummaries(basePath: string, mid: string): void {
   const completedSliceIds = new Set<string>();
   if (isDbAvailable()) {
@@ -467,11 +515,12 @@ function backfillMissingAssessmentsFromSummaries(basePath: string, mid: string):
     const slicePath = resolveSlicePath(basePath, mid, sliceId);
     const assessmentPath = resolveSliceFile(basePath, mid, sliceId, "ASSESSMENT")
       ?? (slicePath ? join(slicePath, buildSliceFileName(sliceId, "ASSESSMENT")) : null);
-    if (!assessmentPath || existsSync(assessmentPath)) continue;
+    if (!assessmentPath) continue;
 
-    mkdirSync(dirname(assessmentPath), { recursive: true });
+    const assessmentRelPath = relSliceFile(basePath, mid, sliceId, "ASSESSMENT");
     const now = new Date().toISOString();
-    const content = [
+    const didCreateAssessment = !existsSync(assessmentPath);
+    const content = didCreateAssessment ? [
       "---",
       `sliceId: ${sliceId}`,
       "verdict: PASS",
@@ -483,8 +532,20 @@ function backfillMissingAssessmentsFromSummaries(basePath: string, mid: string):
       "Auto-created during milestone validation because this completed slice had a SUMMARY but no ASSESSMENT artifact.",
       "No additional reassessment changes were detected in this backfill step.",
       "",
-    ].join("\n");
-    writeFileSync(assessmentPath, content, "utf-8");
+    ].join("\n") : readFileSync(assessmentPath, "utf-8");
+
+    if (isDbAvailable()) {
+      try {
+        persistSliceAssessmentBackfill(assessmentRelPath, mid, sliceId, content);
+      } catch (err) {
+        logWarning("dispatch", `failed to backfill assessment DB rows for ${mid}/${sliceId}: ${(err as Error).message}`);
+      }
+    }
+
+    if (didCreateAssessment) {
+      mkdirSync(dirname(assessmentPath), { recursive: true });
+      writeFileSync(assessmentPath, content, "utf-8");
+    }
   }
 }
 
