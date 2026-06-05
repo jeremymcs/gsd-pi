@@ -3171,6 +3171,9 @@ export async function runFinalize(
   }
 
   if (preUnitSnapshot?.type === "complete-milestone" && s.currentMilestoneId) {
+    // cleanupAfterLoopExit skips gsd-progress when preserveCompletionSurface is true, so clear stale controls here.
+    ctx.ui.setStatus?.("gsd-step", undefined);
+    ctx.ui.setWidget?.("gsd-progress", undefined);
     await deps.stopAuto(ctx, pi, `Milestone ${s.currentMilestoneId} complete`, {
       completionWidget: {
         milestoneId: s.currentMilestoneId,

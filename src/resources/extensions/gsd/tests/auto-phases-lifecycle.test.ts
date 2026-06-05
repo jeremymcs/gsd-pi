@@ -328,6 +328,60 @@ test("runFinalize does not render next-phase handoff for complete-milestone", as
   );
 });
 
+test("runFinalize clears gsd-step and gsd-progress before stopAuto on complete-milestone", async (t) => {
+  const base = mkdtempSync(join(tmpdir(), "gsd-finalize-stale-widget-"));
+  t.after(() => {
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  const s = new AutoSession();
+  s.basePath = base;
+  s.originalBasePath = base;
+  s.currentMilestoneId = "M001";
+  s.currentUnit = {
+    type: "complete-milestone",
+    id: "M001",
+    startedAt: Date.now(),
+  };
+
+  const statusCalls: Array<[string, unknown]> = [];
+  const widgetCalls: Array<[string, unknown]> = [];
+
+  await runFinalizeWithDeps(
+    s,
+    {
+      preflightCleanRoot: () => ({ stashPushed: false }),
+      postflightPopStash: () => ({ needsManualRecovery: false }),
+      lifecycle: {
+        exitMilestone() {
+          return { ok: true, merged: true, codeFilesChanged: false };
+        },
+      },
+    },
+    {
+      hasUI: true,
+      ui: {
+        notify() {},
+        setStatus(key: string, value: unknown) {
+          statusCalls.push([key, value]);
+        },
+        setWidget(key: string, value: unknown) {
+          widgetCalls.push([key, value]);
+        },
+      },
+    },
+  );
+
+  assert.ok(
+    statusCalls.some(([key, val]) => key === "gsd-step" && val === undefined),
+    "gsd-step status should be cleared before stopAuto",
+  );
+  assert.ok(
+    widgetCalls.some(([key, val]) => key === "gsd-progress" && val === undefined),
+    "gsd-progress widget should be cleared before stopAuto",
+  );
+});
+
 test("runFinalize stops before merge when an isolated unit leaks app files into project root", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "gsd-root-leak-root-"));
   const worktree = join(root, ".gsd", "worktrees", "M001");
