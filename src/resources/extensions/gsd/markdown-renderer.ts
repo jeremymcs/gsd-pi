@@ -9,7 +9,7 @@
 // Critical invariant: rendered markdown must round-trip through
 // parseRoadmap(), parsePlan(), parseSummary() in files.ts.
 
-import { readFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { logWarning } from "./workflow-logger.js";
 import { isClosedStatus } from "./status-guards.js";
 import { dirname, join, relative } from "node:path";
@@ -37,7 +37,7 @@ import {
   buildTaskFileName,
   buildSliceFileName,
 } from "./paths.js";
-import { saveFile, clearParseCache } from "./files.js";
+import { saveFile, clearParseCache, registerCacheClearCallback } from "./files.js";
 import { parseRoadmap, parsePlan } from "./parsers-legacy.js";
 import { invalidateStateCache } from "./state.js";
 import { clearPathCache } from "./paths.js";
@@ -738,6 +738,35 @@ export interface StaleEntry {
  * Returns a list of stale entries with file path and reason.
  * Logs to stderr when stale files are detected.
  */
+// #442 Phase 1.5: cache parsed ROADMAP/PLAN projections by file identity
+// (path + mtimeMs + size) so an unchanged projection skips readFileSync AND
+// the parse entirely on repeated dispatches. The DB-vs-disk comparison below
+// still runs every call against fresh DB rows — only the disk-parse half is
+// memoized, and parsed output depends solely on file bytes, so this is
+// behavior-preserving. Invalidation rides the existing clearParseCache()
+// callback chain (fired by invalidateCaches() after every projection write and
+// by reconcileBeforeDispatch repairs), so a changed file always re-parses.
+interface CachedProjection { mtimeMs: number; size: number; parsed: unknown }
+const _projectionParseCache = new Map<string, CachedProjection>();
+registerCacheClearCallback(() => _projectionParseCache.clear());
+
+function parseProjectionByIdentity(path: string, parse: (content: string) => unknown): unknown {
+  let st: ReturnType<typeof statSync> | null = null;
+  try { st = statSync(path); } catch { st = null; }
+  if (st) {
+    const hit = _projectionParseCache.get(path);
+    if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) {
+      return hit.parsed;
+    }
+    const parsed = parse(readFileSync(path, "utf-8"));
+    _projectionParseCache.set(path, { mtimeMs: st.mtimeMs, size: st.size, parsed });
+    return parsed;
+  }
+  // stat failed (e.g. file vanished between existsSync and here) — fall back to
+  // the original plain read+parse so error handling is unchanged.
+  return parse(readFileSync(path, "utf-8"));
+}
+
 export function detectStaleRenders(basePath: string): StaleEntry[] {
   // parseRoadmap/parsePlan are statically imported (#442 Phase 1.4): the
   // per-call createRequire("./parsers-legacy") that used to live here ran on
@@ -754,8 +783,7 @@ export function detectStaleRenders(basePath: string): StaleEntry[] {
     const roadmapPath = resolveRoadmapProjectionPath(basePath, milestone.id);
     if (existsSync(roadmapPath)) {
       try {
-        const content = readFileSync(roadmapPath, "utf-8");
-        const parsed = parseRoadmap(content);
+        const parsed = parseProjectionByIdentity(roadmapPath, parseRoadmap) as ReturnType<typeof parseRoadmap>;
 
         for (const slice of slices) {
           const isCompleteInDb = isClosedStatus(slice.status);
@@ -787,8 +815,7 @@ export function detectStaleRenders(basePath: string): StaleEntry[] {
       const planPath = resolveSliceFile(basePath, milestone.id, slice.id, "PLAN");
       if (planPath && existsSync(planPath)) {
         try {
-          const content = readFileSync(planPath, "utf-8");
-          const parsed = parsePlan(content);
+          const parsed = parseProjectionByIdentity(planPath, parsePlan) as ReturnType<typeof parsePlan>;
 
           for (const task of tasks) {
             const isDoneInDb = isClosedStatus(task.status);
