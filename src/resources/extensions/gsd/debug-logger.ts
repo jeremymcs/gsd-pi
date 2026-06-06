@@ -25,6 +25,7 @@ const _counters = {
   parsePlanTotalMs: 0,
   dispatches: 0,
   renders: 0,
+  gitInvocations: 0,
 };
 
 /** Max debug log files to keep. Older ones are pruned on enable. */
@@ -168,6 +169,7 @@ export function writeDebugSummary(): string | null {
     avgTtsrCheck_ms,
     ttsrPeakBuffer: _counters.ttsrPeakBuffer,
     renders: _counters.renders,
+    gitInvocations: _counters.gitInvocations,
   });
 
   return disableDebug();

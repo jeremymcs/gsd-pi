@@ -13,6 +13,7 @@ import { GSDError, GSD_GIT_ERROR } from "./errors.js";
 import { GIT_NO_PROMPT_ENV } from "./git-constants.js";
 import { getErrorMessage } from "./error-utils.js";
 import { isInfrastructureError } from "./auto/infra-errors.js";
+import { debugCount } from "./debug-logger.js";
 
 // Issue #453: keep auto-mode bookkeeping on the stable git CLI path unless a
 // caller explicitly opts into the native helper.
@@ -140,6 +141,8 @@ function loadNative(): typeof nativeModule {
 
 /** Run a git command via execFileSync. Returns trimmed stdout. */
 function gitExec(basePath: string, args: string[], allowFailure = false): string {
+  // Counts git CLI shell-outs only (native libgit2 paths bypass this helper).
+  debugCount("gitInvocations");
   try {
     return execFileSync("git", args, {
       cwd: basePath,
@@ -169,6 +172,8 @@ function execGitFileSyncWithRetry(
   args: string[],
   options: Partial<ExecFileSyncOptionsWithStringEncoding>,
 ): string {
+  // Counts git CLI shell-outs only (native libgit2 paths bypass this helper).
+  debugCount("gitInvocations");
   try {
     return execFileSync("git", args, {
       cwd: basePath,
@@ -180,6 +185,8 @@ function execGitFileSyncWithRetry(
   } catch (err) {
     if (!isRetryableGitError(err)) throw err;
     sleepSync(GIT_RETRY_DELAY_MS);
+    // Retry is a second physical shell-out — count it too.
+    debugCount("gitInvocations");
     return execFileSync("git", args, {
       cwd: basePath,
       stdio: ["ignore", "pipe", "pipe"],
@@ -192,6 +199,8 @@ function execGitFileSyncWithRetry(
 
 /** Run a git command via execFileSync. Returns trimmed stdout. */
 function gitFileExec(basePath: string, args: string[], allowFailure = false): string {
+  // Counts git CLI shell-outs only (native libgit2 paths bypass this helper).
+  debugCount("gitInvocations");
   try {
     return execFileSync("git", args, {
       cwd: basePath,
