@@ -323,15 +323,20 @@ jobs:
           wait_for_workspace_package() {
             PACKAGE="$1"
             DELAY=5
-            for attempt in $(seq 1 5); do
+            for attempt in $(seq 1 10); do
               PUBLISHED=$(npm view "${PACKAGE}@${VERSION}" version 2>/dev/null || echo "")
               if [ "${PUBLISHED}" = "${VERSION}" ]; then
                 echo "  ✓ ${PACKAGE}@${VERSION} visible on npm (attempt ${attempt})"
                 return 0
               fi
-              if [ "$attempt" = "5" ]; then
-                echo "::error::${PACKAGE}@${VERSION} not visible on npm after 5 attempts"
-                exit 1
+              if [ "$attempt" = "10" ]; then
+                # `npm publish` already confirmed registry acceptance ("+ pkg@version").
+                # Brand-new packages can lag significantly in read-after-write
+                # propagation, so a slow read MUST NOT abort the remaining publishes
+                # (previously this exited and left later packages, e.g. mcp-server,
+                # unpublished). Warn and continue; the final smoke tests still gate.
+                echo "::warning::${PACKAGE}@${VERSION} not yet visible on npm after ${attempt} attempts; publish was accepted, continuing."
+                return 0
               fi
               echo "  Attempt ${attempt}: ${PACKAGE}@${VERSION} not visible yet, retrying in ${DELAY}s..."
               sleep "$DELAY"
@@ -357,7 +362,15 @@ jobs:
               echo "${workspace}@${VERSION} already published, skipping"
               continue
             fi
-            ( cd "${ROOT}/${dir}" && npm publish --ignore-scripts ${TAG_FLAG} )
+            if OUTPUT=$( cd "${ROOT}/${dir}" && npm publish --ignore-scripts ${TAG_FLAG} 2>&1 ); then
+              echo "$OUTPUT"
+            elif echo "$OUTPUT" | grep -q "cannot publish over the previously published\|You cannot publish over"; then
+              echo "${workspace}@${VERSION} already published, skipping"
+              continue
+            else
+              echo "$OUTPUT"
+              exit 1
+            fi
             wait_for_workspace_package "${workspace}"
           done
 
