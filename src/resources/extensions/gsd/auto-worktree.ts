@@ -2173,7 +2173,8 @@ export function mergeMilestoneToMain(
   // "squash" (default): stages changes without a merge commit; caller commits.
   // "merge": --no-ff --no-commit so caller can supply the commit message while
   // git records a real merge commit (MERGE_HEAD present when nativeCommit runs).
-  const mergeResult = prefs.merge_strategy === "merge"
+  const effectiveStrategy = prefs.merge_strategy === "merge" ? "merge" : "squash";
+  const mergeResult = effectiveStrategy === "merge"
     ? nativeMergeRegular(originalBasePath_, milestoneBranch)
     : nativeMergeSquash(originalBasePath_, milestoneBranch);
   if (needsDbCycle && dbPathToReopen) {
@@ -2211,7 +2212,7 @@ export function mergeMilestoneToMain(
         : `Check \`git status\` in the project root for details.`;
       throw new GSDError(
         GSD_GIT_ERROR,
-        `Squash merge of ${milestoneBranch} rejected: working tree has dirty or untracked files ` +
+        `${effectiveStrategy === "merge" ? "Merge" : "Squash merge"} of ${milestoneBranch} rejected: working tree has dirty or untracked files ` +
           `that conflict with the merge. ${fileList}`,
       );
     }
@@ -2256,7 +2257,7 @@ export function mergeMilestoneToMain(
         process.chdir(previousCwd);
         throw new MergeConflictError(
           codeConflicts,
-          "squash",
+          effectiveStrategy,
           milestoneBranch,
           mainBranch,
         );
@@ -2422,7 +2423,7 @@ export function mergeMilestoneToMain(
       process.chdir(previousCwd);
       throw new GSDError(
         GSD_GIT_ERROR,
-        `Squash merge produced nothing to commit but milestone branch "${milestoneBranch}" ` +
+        `${effectiveStrategy === "merge" ? "Merge" : "Squash merge"} produced nothing to commit but milestone branch "${milestoneBranch}" ` +
           `has ${codeChanges.length} code file(s) not on "${mainBranch}". ` +
           `Aborting worktree teardown to prevent data loss.`,
       );
