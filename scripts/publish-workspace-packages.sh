@@ -23,6 +23,27 @@ cd "$ROOT"
 VERSION="$(node -p "require('./package.json').version")"
 TAG_FLAG="${TAG_FLAG:-}"
 
+# Extract the dist-tag name from TAG_FLAG (e.g. "--tag latest" → "latest").
+# Echoes "" if no --tag is present.
+_extract_tag() {
+  if [[ "${TAG_FLAG}" =~ --tag[[:space:]]+([^[:space:]]+) ]]; then
+    echo "${BASH_REMATCH[1]}"
+  fi
+}
+
+# Verify that dist-tag $2 on package $1 resolves to ${VERSION}; exits 1 if not.
+_verify_dist_tag() {
+  local pkg="$1" tag="$2"
+  local actual
+  actual=$(npm view "${pkg}" "dist-tags.${tag}" 2>/dev/null || true)
+  if [[ "${actual}" != "${VERSION}" ]]; then
+    echo "::error::@${tag} points to '${actual:-<unset>}' not ${VERSION} for ${pkg}."
+    echo "::error::Move the tag manually if intended: npm dist-tag add ${pkg}@${VERSION} ${tag}"
+    exit 1
+  fi
+  echo "Confirmed: ${pkg} @${tag} → ${VERSION}."
+}
+
 # Lines of "<name>:packages/<dir>" in dependency order.
 mapfile -t _raw_entries < <(node scripts/lib/npm-release-packages.cjs --workspace-dirs)
 # Filter empty strings (defense-in-depth: prevents a stray trailing newline
@@ -68,8 +89,14 @@ printf '  - %s\n' "${ENTRIES[@]}"
 for entry in "${ENTRIES[@]}"; do
   workspace="${entry%%:*}"
   dir="${entry#*:}"
+  _tag="$(_extract_tag)"
   if npm view "${workspace}@${VERSION}" version >/dev/null 2>&1; then
-    echo "${workspace}@${VERSION} already published, skipping"
+    if [[ -n "${_tag}" ]]; then
+      echo "${workspace}@${VERSION} already on registry — verifying @${_tag} dist-tag."
+      _verify_dist_tag "${workspace}" "${_tag}"
+    else
+      echo "${workspace}@${VERSION} already published, skipping"
+    fi
     continue
   fi
   # Publish from the package's OWN directory. `npm publish --workspace` does NOT
@@ -81,7 +108,12 @@ for entry in "${ENTRIES[@]}"; do
   if OUTPUT=$( cd "${ROOT}/${dir}" && npm publish --ignore-scripts ${TAG_FLAG} 2>&1 ); then
     echo "$OUTPUT"
   elif echo "$OUTPUT" | grep -q "cannot publish over the previously published\|You cannot publish over"; then
-    echo "${workspace}@${VERSION} already published, skipping"
+    echo "::warning::${workspace}@${VERSION} concurrent publish detected — verifying dist-tag."
+    if [[ -n "${_tag}" ]]; then
+      _verify_dist_tag "${workspace}" "${_tag}"
+    else
+      echo "${workspace}@${VERSION} already published (no dist-tag to verify), skipping."
+    fi
     continue
   else
     echo "$OUTPUT"
