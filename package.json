@@ -215,5 +215,14 @@
     "@opengsd/engine-win32-x64-msvc": "1.2.0",
     "fsevents": "~2.3.3",
     "koffi": "^2.9.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.10",
+    "@mistralai/mistralai": "2.2.1",
+    "gaxios": "7.1.4",
+    "c8": {
+      "yargs": "^18.0.0"
+    }
   }
 }
