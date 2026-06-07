@@ -46,7 +46,11 @@ jobs:
             # ({created, modified, "<ver>": "<iso>"}), not a single timestamp —
             # `new Date(map)` is NaN, which silently disabled this whole job.
             # Index the map by the specific version (fall back to `modified`).
-            if ! PUBLISH_TIME=$(TARGET_VERSION="${VERSION}" npm view "${PACKAGE}@${VERSION}" time --json 2>/dev/null | node -e "
+            # TARGET_VERSION is prefixed on `node`, not `npm view`: the two sides
+            # of the pipe are separate processes, so a prefix on `npm view` never
+            # reaches the parser — `data[undefined]` would silently fall back to
+            # `modified` instead of the version-specific publish timestamp.
+            if ! PUBLISH_TIME=$(npm view "${PACKAGE}@${VERSION}" time --json 2>/dev/null | TARGET_VERSION="${VERSION}" node -e "
               const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
               const iso = data[process.env.TARGET_VERSION] ?? data.modified;
               const ts = Math.floor(new Date(iso).getTime() / 1000);
