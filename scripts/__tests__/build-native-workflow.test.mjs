@@ -65,7 +65,7 @@ test("build-native requires token auth when engine packages are missing from npm
 
   assert.ok(step, "publish job must guard trusted auth when packages are new");
   assert.equal(step.if, "github.event.inputs.publish_auth != 'token'");
-  assert.match(step.run, /@opengsd\/mcp-server/);
+  assert.match(step.run, /npm-release-packages\.cjs --workspace-dirs/);
   assert.match(step.run, /do not exist on npm yet/);
   assert.match(step.run, /publish_auth=token/);
 

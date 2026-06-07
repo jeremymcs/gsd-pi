@@ -215,11 +215,12 @@ jobs:
             fi
           done
           if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ github.event.inputs.platform_packages_only }}" != "true" ]; then
-            for pkg in @opengsd/contracts @opengsd/rpc-client @opengsd/mcp-server; do
+            while IFS= read -r entry; do
+              pkg="${entry%%:*}"
               if ! npm view "${pkg}" name >/dev/null 2>&1; then
                 MISSING+=("${pkg}")
               fi
-            done
+            done < <(node scripts/lib/npm-release-packages.cjs --workspace-dirs)
           fi
           if [ "${#MISSING[@]}" -gt 0 ]; then
             echo "::error::These npm packages do not exist on npm yet:"

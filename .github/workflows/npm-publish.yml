@@ -169,8 +169,14 @@ jobs:
             echo "$OUTPUT"
           else
             if echo "$OUTPUT" | grep -q "cannot publish over the previously published\|You cannot publish over"; then
-              echo "Version ${VERSION} was published concurrently — treating as already published."
-              echo "::warning::@opengsd/gsd-pi@${VERSION} already existed at publish time; verify @${CHANNEL} points to it."
+              echo "Version ${VERSION} was published concurrently — verifying @${CHANNEL} tag."
+              TAGGED=$(npm view "@opengsd/gsd-pi" "dist-tags.${CHANNEL}" 2>/dev/null || true)
+              if [ "${TAGGED}" != "${VERSION}" ]; then
+                echo "::error::@${CHANNEL} points to '${TAGGED:-<unset>}' not ${VERSION} after concurrent publish."
+                echo "::error::Move the tag manually if intended: npm dist-tag add @opengsd/gsd-pi@${VERSION} ${CHANNEL}"
+                exit 1
+              fi
+              echo "Confirmed: @${CHANNEL} → ${VERSION} (from concurrent publish)."
             else
               echo "$OUTPUT"
               exit 1
