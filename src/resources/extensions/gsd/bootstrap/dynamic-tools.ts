@@ -7,7 +7,6 @@ import { join } from "node:path";
 import type { ExtensionAPI } from "@gsd/pi-coding-agent";
 import { createBashTool, createEditTool, createReadTool, createWriteTool } from "@gsd/pi-coding-agent";
 
-import { DEFAULT_BASH_TIMEOUT_SECS } from "../constants.js";
 import { logWarning } from "../workflow-logger.js";
 import { openWorkflowDatabase } from "../db-workspace.js";
 import { getAutoWorktreePath } from "../auto-worktree.js";
@@ -87,8 +86,30 @@ export function registerDynamicTools(pi: ExtensionAPI): void {
   const baseBash = createBashTool(fallbackRoot, {
     spawnHook: (ctx) => ctx,
   });
+  // The auto-mode stalled-tool watchdog only exists in GSD/auto-mode, so the
+  // watchdog verbiage is injected here (the GSD-registered tool) rather than in
+  // core bash.ts, which is reused by non-GSD embeddings that have no watchdog.
+  const WATCHDOG_DETAIL =
+    "Genuine hangs are caught by the auto-mode stalled-tool watchdog (stalled: 5m / idle: 10m / soft: 20m / hard: 30m).";
+  const gsdBashDescription = `${(baseBash as any).description} ${WATCHDOG_DETAIL}`;
+  const gsdBashParameters = (() => {
+    const params: any = (baseBash as any).parameters;
+    if (!params?.properties?.timeout) return params;
+    return {
+      ...params,
+      properties: {
+        ...params.properties,
+        timeout: {
+          ...params.properties.timeout,
+          description: `${params.properties.timeout.description} ${WATCHDOG_DETAIL}`,
+        },
+      },
+    };
+  })();
   const dynamicBash = {
     ...baseBash,
+    description: gsdBashDescription,
+    parameters: gsdBashParameters,
     execute: async (
       toolCallId: string,
       params: { command: string; timeout?: number },
@@ -100,11 +121,7 @@ export function registerDynamicTools(pi: ExtensionAPI): void {
       const fresh = createBashTool(basePath, {
         spawnHook: (spawnCtx) => ({ ...spawnCtx, cwd: basePath }),
       });
-      const paramsWithTimeout = {
-        ...params,
-        timeout: params.timeout ?? DEFAULT_BASH_TIMEOUT_SECS,
-      };
-      return (fresh as any).execute(toolCallId, paramsWithTimeout, signal, onUpdate, ctx);
+      return (fresh as any).execute(toolCallId, params, signal, onUpdate, ctx);
     },
   };
   pi.registerTool(dynamicBash as any);

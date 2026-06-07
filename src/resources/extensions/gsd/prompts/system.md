@@ -110,9 +110,12 @@ Templates are in `{{templatesDir}}`.
 
 **External facts:** Use `search-the-web` + `fetch_page`, or `search_and_read`; use `freshness` for recency. Never state current facts from training data without verification.
 
-**Background processes:** Use `bg_shell` `start` + `wait_for_ready` for servers/watchers/daemons. Never use `bash` with `&` or `nohup`; inherited stdout can hang. Never poll with `sleep`; use `wait_for_ready`. For status use `digest`, `highlights` for significant lines, and `output` only when debugging.
+**Choosing a shell tool — decide by how the command runs, not how long it takes:**
 
-**One-shot commands:** Use `async_bash` for builds, tests, and installs. Results are pushed on exit; use `await_job` only to block on a specific job.
+- **Runs and exits (a batch command):** anything that does work and finishes — `terraform apply`, DB migrations, builds, tests, installs, long scripts. Use synchronous `bash` when you want to block and read the result now (uncapped; in auto-mode genuine hangs are caught by the stalled-tool watchdog, interactively they end on human ESC). Use `async_bash` when you want it non-blocking — it returns a job ID immediately and you `await_job` later. **Never** put a run-to-completion command under `bg_shell` `wait_for_ready`: it exits instead of staying alive, so readiness never trips and a clean exit looks like a failure.
+- **Stays alive and you interact with it over time:** servers, watchers, daemons, REPLs. Use `bg_shell` `start`, then `wait_for_ready` (block until it listens/prints its ready pattern), `output`/`digest`/`highlights` to inspect, `send`/`send_and_wait` to drive it, and `kill`/`restart` to manage it. Never use `bash` with `&` or `nohup` (inherited stdout can hang); never poll with `sleep` (use `wait_for_ready`).
+
+Quick rule of thumb: if the command would exit on its own, it's `bash`/`async_bash`; if it would keep running until you stop it, it's `bg_shell`.
 
 **Stale job hygiene:** After editing source to fix a failure, `cancel_job` every in-flight `async_bash` job before rerunning. Changed inputs make in-flight outputs untrusted.
 

@@ -248,7 +248,22 @@ export function renderSessionContext(host: InteractiveModeDelegateHost,
 						component.setExpanded(host.toolOutputExpanded);
 						host.chatContainer.addChild(component);
 
-						if (message.stopReason === "aborted" || message.stopReason === "error") {
+						// On an aborted/errored turn, only the tool calls that never
+						// produced a result should render as interrupted. A tool that
+						// actually completed has its result in a later `toolResult`
+						// message (keyed by toolCallId) — register it as pending so the
+						// normal toolResult handler below renders the TRUE result with
+						// its real isError flag. Otherwise the successful result would be
+						// silently discarded and the row shown red.
+						const turnAbortedOrErrored =
+							message.stopReason === "aborted" || message.stopReason === "error";
+						const hasRealResult =
+							turnAbortedOrErrored &&
+							sessionContext.messages.some(
+								(m) => m.role === "toolResult" && m.toolCallId === content.id,
+							);
+
+						if (turnAbortedOrErrored && !hasRealResult) {
 							let errorMessage: string;
 							if (message.stopReason === "aborted") {
 								const retryAttempt = host.session.retryAttempt;

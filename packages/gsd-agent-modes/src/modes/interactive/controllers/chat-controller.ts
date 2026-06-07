@@ -1371,6 +1371,13 @@ export async function handleAgentEvent(host: InteractiveModeStateHost & {
 			const component = host.pendingTools.get(event.toolCallId);
 			if (component) {
 				component.updateResult({ ...event.result, isError: event.isError });
+				// NOTE: the component is intentionally left in host.pendingTools.
+				// The message_end rebuild path relies on finding already-completed
+				// components there to re-attach them; removing it here makes the
+				// rebuild synthesize a fresh empty component that a turn-abort would
+				// then mark errored. The real protection against downgrading a
+				// finished tool lives in ToolExecutionComponent.completeWithError,
+				// which no-ops on an already-successful result.
 				replaceCompactToolRowsWithPhaseSummary(host);
 				host.ui.requestRender();
 			}

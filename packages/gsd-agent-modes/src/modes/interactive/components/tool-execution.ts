@@ -674,6 +674,11 @@ export class ToolExecutionComponent extends Container {
 
 	/**
 	 * Finalize a pending tool call as failed/interrupted while preserving any streamed partial output.
+	 *
+	 * Guard: a tool that already produced a settled, non-partial result must NOT be
+	 * touched just because the surrounding turn was aborted (e.g. the user pressed
+	 * ESC during a later tool's await). Only genuinely-incomplete tool calls should
+	 * be marked interrupted.
 	 */
 	completeWithError(message?: string): void {
 		if (this.result && !this.isPartial) {

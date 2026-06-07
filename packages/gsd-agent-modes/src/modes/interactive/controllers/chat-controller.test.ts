@@ -773,3 +773,85 @@ test("handleAgentEvent: agent_end finalizes orphaned pending tool cards", async 
 	assert.doesNotMatch(rendered, /running/, "agent_end must not leave stale running tool cards");
 	assert.match(rendered, /success/, "orphaned tool card should settle as no-result success");
 });
+
+test("handleAgentEvent: aborting a turn does NOT flip an already-completed tool to error (ESC regression)", async () => {
+	// Repro: a background-bash tool finishes successfully, then the user presses
+	// ESC during a later await. The turn ends with stopReason "aborted". The
+	// already-finished tool must stay a success — only genuinely-pending tools
+	// should be marked interrupted.
+	initTheme("dark", false);
+	const chatContainer = new Container();
+	const host = createStreamingHost(chatContainer);
+
+	const message = {
+		id: "turn-1",
+		role: "assistant",
+		provider: "claude-code",
+		model: "claude-opus-4-8",
+		timestamp: 1,
+		stopReason: "aborted",
+		content: [{ type: "toolCall", id: "bg-1", name: "async_bash", arguments: { command: "echo hi" } }],
+	};
+
+	await handleAgentEvent(host, {
+		type: "tool_execution_start",
+		toolCallId: "bg-1",
+		toolName: "async_bash",
+		args: { command: "echo hi" },
+	} as any);
+	await handleAgentEvent(host, {
+		type: "tool_execution_end",
+		toolCallId: "bg-1",
+		toolName: "async_bash",
+		result: { content: [{ type: "text", text: "Background job started: bg-1" }], isError: false },
+		isError: false,
+	} as any);
+
+	// Precondition: the completed tool rendered as success before the abort.
+	assert.match(
+		stripAnsi(chatContainer.render(100).join("\n")),
+		/success/,
+		"precondition: completed tool should render success before abort",
+	);
+
+	await handleAgentEvent(host, { type: "message_end", message } as any);
+
+	const rendered = stripAnsi(chatContainer.render(100).join("\n"));
+	assert.match(rendered, /success/, "completed tool must stay green after the turn is aborted");
+	assert.doesNotMatch(
+		rendered,
+		/Operation aborted/,
+		"a completed tool must not be labelled aborted just because the turn was",
+	);
+});
+
+test("handleAgentEvent: aborting a turn DOES mark a still-pending tool as interrupted", async () => {
+	// Counterpart to the regression above: a tool that never produced a result
+	// must still be marked interrupted when the turn aborts.
+	initTheme("dark", false);
+	const chatContainer = new Container();
+	const host = createStreamingHost(chatContainer);
+
+	const message = {
+		id: "turn-2",
+		role: "assistant",
+		provider: "claude-code",
+		model: "claude-opus-4-8",
+		timestamp: 1,
+		stopReason: "aborted",
+		content: [{ type: "toolCall", id: "await-1", name: "await_job", arguments: {} }],
+	};
+
+	await handleAgentEvent(host, {
+		type: "tool_execution_start",
+		toolCallId: "await-1",
+		toolName: "await_job",
+		args: {},
+	} as any);
+	// No tool_execution_end — the tool is still pending when the abort lands.
+
+	await handleAgentEvent(host, { type: "message_end", message } as any);
+
+	const rendered = stripAnsi(chatContainer.render(100).join("\n"));
+	assert.match(rendered, /Operation aborted/, "a genuinely-pending tool must be marked interrupted on abort");
+});

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { registerExecTools } from "../bootstrap/exec-tools.ts";
-import { executeUatExec } from "../tools/exec-tool.ts";
+import { executeGsdExec, executeUatExec } from "../tools/exec-tool.ts";
 import type { ExecSandboxRequest, ExecSandboxResult } from "../exec-sandbox.ts";
 
 function makeExecResult(request: ExecSandboxRequest): ExecSandboxResult {
@@ -12,6 +12,7 @@ function makeExecResult(request: ExecSandboxRequest): ExecSandboxResult {
     exit_code: 0,
     signal: null,
     timed_out: false,
+    force_resolved: false,
     duration_ms: 1,
     stdout_bytes: 12,
     stderr_bytes: 0,
@@ -49,6 +50,33 @@ test("executeUatExec accepts evidence-mode aliases for intent", async () => {
   assert.equal(result.details?.operation, "gsd_uat_exec");
   assert.equal(result.details?.intent, "uat-artifact-check");
   assert.equal(requests[0]?.metadata?.intent, "uat-artifact-check");
+});
+
+test("gsd_exec surfaces a force-resolved (D-state) kill distinctly from a clean exit", async () => {
+  // A hard-deadline force-resolve sets force_resolved=true with a synthetic SIGKILL
+  // signal and null exit code. The tool result must carry that flag in details and
+  // render it as exit=timeout(force-killed) so the agent can tell it apart from a
+  // normally-exited or cleanly-timed-out command.
+  const result = await executeGsdExec(
+    { runtime: "bash", script: "sleep 60" },
+    {
+      baseDir: "/tmp/gsd-exec-force-resolved-test",
+      preferences: null,
+      run: async (request) => ({
+        ...makeExecResult(request),
+        exit_code: null,
+        signal: "SIGKILL",
+        timed_out: true,
+        force_resolved: true,
+        digest: "[no stdout \u2014 timed out]",
+      }),
+    },
+  );
+
+  assert.equal(result.isError, true, "a force-resolved kill is an error result");
+  assert.equal(result.details?.force_resolved, true, "details must expose force_resolved");
+  const text = result.content.map((c) => c.text ?? "").join("\n");
+  assert.match(text, /exit=timeout\(force-killed\)/, "summary must distinguish a force-killed result");
 });
 
 test("registerExecTools exposes gsd_uat_exec intent as recoverable string schema", () => {

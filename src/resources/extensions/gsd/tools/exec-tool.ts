@@ -424,6 +424,7 @@ function formatResult(result: ExecSandboxResult): ToolExecutionResult {
       exit_code: result.exit_code,
       signal: result.signal,
       timed_out: result.timed_out,
+      force_resolved: result.force_resolved,
       duration_ms: result.duration_ms,
       stdout_bytes: result.stdout_bytes,
       stderr_bytes: result.stderr_bytes,
@@ -438,6 +439,9 @@ function formatResult(result: ExecSandboxResult): ToolExecutionResult {
 }
 
 function formatExit(result: ExecSandboxResult): string {
+  // force_resolved means a non-closing (D-state) child was force-resolved past its
+  // hard deadline rather than observed exiting; distinguish it from a clean timeout.
+  if (result.force_resolved) return "timeout(force-killed)";
   if (result.timed_out) return "timeout";
   if (result.signal) return `signal:${result.signal}`;
   if (result.exit_code === null) return "null";
