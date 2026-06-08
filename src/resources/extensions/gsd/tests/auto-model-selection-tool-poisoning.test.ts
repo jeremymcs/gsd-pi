@@ -33,6 +33,7 @@ import {
   selectAndApplyModel,
   ModelPolicyDispatchBlockedError,
   clearToolBaseline,
+  getRegisteredToolSnapshot,
   getToolBaselineSnapshot,
 } from "../auto-model-selection.js";
 import { applyModelPolicyFilter } from "../uok/model-policy.js";
@@ -772,4 +773,21 @@ test("baseline union (#477): getToolBaselineSnapshot includes live tools not pre
     env.restoreEnv();
     env.cleanup();
   }
+});
+
+test("registered tool snapshot includes tools hidden from the active surface", () => {
+  const pi = {
+    getActiveTools: () => ["read"],
+    getAllTools: () => [
+      { name: "read" },
+      { name: "browser_navigate" },
+      { name: "mcp__gsd-browser__*" },
+    ],
+  };
+
+  assert.deepEqual(getRegisteredToolSnapshot(pi as any), [
+    "read",
+    "browser_navigate",
+    "mcp__gsd-browser__*",
+  ]);
 });

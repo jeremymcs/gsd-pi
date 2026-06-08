@@ -122,6 +122,14 @@ export function getToolBaselineSnapshot(pi: ExtensionAPI): string[] {
   return [...new Set([...baseline, ...live])];
 }
 
+export function getRegisteredToolSnapshot(pi: ExtensionAPI): string[] {
+  if (typeof pi.getAllTools !== "function") return getToolBaselineSnapshot(pi);
+  const names = pi.getAllTools()
+    .map((tool) => tool.name)
+    .filter((name): name is string => typeof name === "string" && name.length > 0);
+  return [...new Set(names)];
+}
+
 /**
  * Models eligible for the pre-dispatch policy gate. Prefer registry-available
  * models; when that list is empty (common after worktree resume before registry

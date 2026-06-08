@@ -45,6 +45,7 @@ import { logWarning } from "./workflow-logger.js";
 import { formattedShortcutPair } from "./shortcut-defs.js";
 import { readUnitRuntimeRecord, type AutoUnitRuntimeRecord } from "./unit-runtime.js";
 import { describeMilestoneReadinessPhase } from "./milestone-readiness.js";
+import type { ToolSurfaceSnapshot } from "./tool-surface-snapshot.js";
 
 const ACTIVE_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
@@ -86,6 +87,8 @@ export interface AutoDashboardData {
   rtkEnabled?: boolean;
   /** Cross-process: another auto-mode session detected via auto.lock (PID, startedAt) */
   remoteSession?: { pid: number; startedAt: string; unitType: string; unitId: string };
+  /** Last typed tool-surface snapshot for active auto-mode scoping/debugging. */
+  toolSurface?: ToolSurfaceSnapshot | null;
 }
 
 export interface CompletionDashboardSnapshot {
@@ -188,6 +191,18 @@ export function unitPhaseLabel(unitType: string): string {
     case "custom-step": return "WORKFLOW";
     default: return unitType.toUpperCase();
   }
+}
+
+export function formatToolSurfaceSnapshot(snapshot: ToolSurfaceSnapshot | null | undefined): string | null {
+  if (!snapshot) return null;
+  const counts = [
+    `model ${snapshot.modelFacingToolNames.length}`,
+    `registered ${snapshot.registeredToolNames.length}`,
+    `scoped ${snapshot.scopedToolNames.length}`,
+    `presented ${snapshot.presentedToolNames.length}`,
+  ];
+  const label = snapshot.unitType ?? snapshot.phase ?? snapshot.source;
+  return `${label}: ${counts.join(" / ")}`;
 }
 
 function peekNext(unitType: string, state: GSDState): string {

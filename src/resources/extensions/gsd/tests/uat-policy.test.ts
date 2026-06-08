@@ -66,6 +66,9 @@ describe("uat-policy", () => {
   it("detects direct and MCP-shaped browser tool surfaces", () => {
     assert.equal(hasUatBrowserToolSurface(["read", "browser_navigate"]), true);
     assert.equal(hasUatBrowserToolSurface(["read", "mcp__gsd-browser__browser_navigate"]), true);
+    assert.equal(hasUatBrowserToolSurface(["read", "mcp__gsd-browser__*"]), true);
+    assert.equal(hasUatBrowserToolSurface(["read", "mcp__browser-uat__*"]), true);
+    assert.equal(hasUatBrowserToolSurface(["read", "mcp__gsd-workflow__*"]), false);
     assert.equal(hasUatBrowserToolSurface(["read", "gsd_uat_exec"]), false);
     assert.equal(hasUatBrowserToolSurface(undefined), false);
   });
@@ -84,6 +87,26 @@ describe("uat-policy", () => {
       getUatBrowserToolSupportError({
         uatType: "browser-executable",
         activeTools: undefined,
+        milestoneId: "M001",
+        sliceId: "S01",
+      }),
+      null,
+    );
+    assert.equal(
+      getUatBrowserToolSupportError({
+        uatType: "human-experience",
+        activeTools: ["read", "gsd_uat_exec"],
+        registeredTools: ["browser_navigate"],
+        milestoneId: "M001",
+        sliceId: "S01",
+      }),
+      null,
+    );
+    assert.equal(
+      getUatBrowserToolSupportError({
+        uatType: "human-experience",
+        activeTools: ["read", "gsd_uat_exec"],
+        registeredTools: ["mcp__gsd-browser__*"],
         milestoneId: "M001",
         sliceId: "S01",
       }),

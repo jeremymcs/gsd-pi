@@ -7,6 +7,7 @@ import {
   WORKFLOW_TOOL_CONTRACTS as CONTRACT_WORKFLOW_TOOL_CONTRACTS,
   WORKFLOW_TOOL_NAMES as CONTRACT_WORKFLOW_TOOL_NAMES,
 } from "@opengsd/contracts";
+import { stripMcpToolPrefix } from "./mcp-tool-name.js";
 
 export interface WorkflowToolAliasPair {
   canonical: string;
@@ -51,11 +52,7 @@ export const WORKFLOW_TOOL_SURFACE_NAMES = [
 
 const WORKFLOW_TOOL_SURFACE_NAME_SET = new Set(WORKFLOW_TOOL_SURFACE_NAMES);
 
-export function stripMcpToolPrefix(toolName: string): string {
-  if (!toolName.startsWith("mcp__")) return toolName;
-  const toolSeparator = toolName.indexOf("__", "mcp__".length);
-  return toolSeparator >= 0 ? toolName.slice(toolSeparator + 2) : toolName;
-}
+export { stripMcpToolPrefix } from "./mcp-tool-name.js";
 
 export function canonicalWorkflowSurfaceToolName(toolName: string): string {
   const baseName = stripMcpToolPrefix(toolName);

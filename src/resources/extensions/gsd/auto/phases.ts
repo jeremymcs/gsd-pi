@@ -86,7 +86,12 @@ import {
   supportsStructuredQuestions,
 } from "../workflow-mcp.js";
 import { prepareWorkflowMcpForProject } from "../workflow-mcp-auto-prep.js";
-import { getToolBaselineSnapshot, applyThinkingLevelForModel, floorThinkingLevelForUnit } from "../auto-model-selection.js";
+import {
+  applyThinkingLevelForModel,
+  floorThinkingLevelForUnit,
+  getRegisteredToolSnapshot,
+  getToolBaselineSnapshot,
+} from "../auto-model-selection.js";
 import type { DispatchAction } from "../auto-dispatch.js";
 import { resolveManifest } from "../unit-context-manifest.js";
 import { createWorktreeSafetyModule, type WorktreeSafetyResult } from "../worktree-safety.js";
@@ -1459,6 +1464,7 @@ export async function runDispatch(
   // Checking a stale-narrowed set causes false transport-preflight warnings
   // that repeat on every /gsd auto resume (#477 follow-up).
   const activeTools = getToolBaselineSnapshot(pi);
+  const registeredTools = getRegisteredToolSnapshot(pi);
   // Deep planning intentionally keeps human checkpoints in plain chat. In
   // Claude Code/local MCP transports, structured question requests can be
   // cancelled outside the normal chat flow, which made approval gates easy to
@@ -1483,6 +1489,7 @@ export async function runDispatch(
     sessionProvider: ctx.model?.provider,
     modelRegistry: ctx.modelRegistry as MinimalModelRegistry | undefined,
     activeTools,
+    registeredTools,
     sessionBaseUrl: ctx.model?.baseUrl,
     sessionAuthMode: authMode,
   });
@@ -1509,6 +1516,7 @@ export async function runDispatch(
       sessionProvider: ctx.model?.provider,
       modelRegistry: ctx.modelRegistry as MinimalModelRegistry | undefined,
       activeTools,
+      registeredTools,
       sessionBaseUrl: ctx.model?.baseUrl,
       sessionAuthMode: authMode,
     });

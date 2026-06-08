@@ -7,6 +7,8 @@ import {
   RUN_UAT_TOOL_PRESENTATION_PLAN_ID,
   RUN_UAT_WORKFLOW_TOOL_NAMES,
 } from "./unit-tool-contracts.js";
+import { parseMcpToolName, toMcpToolName } from "./mcp-tool-name.js";
+import { createToolSurfaceSnapshot, type ToolSurfaceSnapshot } from "./tool-surface-snapshot.js";
 import { uatTypeIncludesBrowser } from "./uat-policy.js";
 import { canonicalWorkflowSurfaceToolName } from "./workflow-tool-surface.js";
 
@@ -34,6 +36,7 @@ export interface ToolPresentationPlan {
   blockedToolNames: Array<{ name: string; reason: string }>;
   aliases: Array<{ requested: string; canonical: string }>;
   diagnostics: string[];
+  toolSurface: ToolSurfaceSnapshot;
 }
 
 export interface RunUatResultPresentation {
@@ -67,18 +70,10 @@ export function canonicalWorkflowToolName(toolName: string): string {
   return canonicalWorkflowSurfaceToolName(toolName);
 }
 
-export function parseMcpToolName(toolName: string): { server: string; tool: string } | null {
-  if (!toolName.startsWith("mcp__")) return null;
-  const toolSeparator = toolName.indexOf("__", "mcp__".length);
-  if (toolSeparator < 0) return null;
-  return {
-    server: toolName.slice("mcp__".length, toolSeparator),
-    tool: toolName.slice(toolSeparator + 2),
-  };
-}
+export { parseMcpToolName } from "./mcp-tool-name.js";
 
 export function toWorkflowMcpToolName(serverName: string, toolName: string): string {
-  return `mcp__${serverName}__${canonicalWorkflowToolName(toolName)}`;
+  return toMcpToolName(serverName, canonicalWorkflowToolName(toolName));
 }
 
 function dedupe(values: readonly string[]): string[] {
@@ -191,6 +186,14 @@ export function resolveToolPresentationPlan(options: {
           : name
       )
     : allowedToolNames;
+  const toolSurface = createToolSurfaceSnapshot({
+    source: "presentation-plan",
+    phase: options.phase,
+    modelFacingToolNames: options.availableToolNames ?? requested,
+    registeredToolNames: options.availableToolNames ?? requested,
+    scopedToolNames: allowedToolNames,
+    presentedToolNames,
+  });
 
   if (options.phase === "run-uat") {
     for (const forbidden of RUN_UAT_FORBIDDEN_TOOL_NAMES) {
@@ -207,5 +210,6 @@ export function resolveToolPresentationPlan(options: {
     blockedToolNames,
     aliases,
     diagnostics: [],
+    toolSurface,
   };
 }

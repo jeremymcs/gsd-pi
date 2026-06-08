@@ -29,11 +29,16 @@ import {
   _refreshLastCommitForTests,
   _getLastCommitForTests,
   _getLastCommitFetchedAtForTests,
+  formatToolSurfaceSnapshot,
   formatRuntimeHealthSignal,
   shouldRenderRoadmapProgress,
 } from "../auto-dashboard.ts";
 import { getAutoDashboardData } from "../auto.ts";
-import { autoSession } from "../auto-runtime-state.ts";
+import {
+  autoSession,
+  clearAutoToolSurfaceSnapshot,
+  recordAutoToolSurfaceSnapshot,
+} from "../auto-runtime-state.ts";
 import { formatRtkSavingsLabel } from "../../shared/rtk-session-stats.ts";
 import {
   openDatabase,
@@ -528,6 +533,29 @@ test("getAutoDashboardData returns RTK savings in the dashboard payload", () => 
     cleanup(autoSession.basePath);
     autoSession.reset();
   }
+});
+
+test("getAutoDashboardData exposes typed tool-surface snapshots", () => {
+  autoSession.reset();
+  clearAutoToolSurfaceSnapshot();
+  autoSession.active = true;
+  recordAutoToolSurfaceSnapshot({
+    source: "provider-adjustment",
+    unitType: "run-uat",
+    modelFacingToolNames: ["read"],
+    registeredToolNames: ["read", "browser_navigate"],
+    scopedToolNames: ["read", "browser_navigate"],
+    presentedToolNames: ["browser_navigate"],
+    capturedAt: 456,
+  });
+
+  const data = getAutoDashboardData();
+
+  assert.equal(data.toolSurface?.source, "provider-adjustment");
+  assert.equal(formatToolSurfaceSnapshot(data.toolSurface), "run-uat: model 1 / registered 2 / scoped 2 / presented 1");
+
+  autoSession.reset();
+  clearAutoToolSurfaceSnapshot();
 });
 
 test("RTK savings label formats the dashboard footer text", () => {

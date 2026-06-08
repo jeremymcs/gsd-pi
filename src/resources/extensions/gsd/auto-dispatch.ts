@@ -153,6 +153,8 @@ export interface DispatchContext {
   sessionProvider?: string;
   /** Active tools in the current session, used for transport preflight checks. */
   activeTools?: string[];
+  /** Registered tools in the current session, used for run-uat tools re-scoped at dispatch. */
+  registeredTools?: string[];
   /** Session model base URL, used for transport preflight checks. */
   sessionBaseUrl?: string;
   /** Session model auth mode, used for transport preflight checks. */
@@ -734,7 +736,17 @@ export const DISPATCH_RULES: DispatchRule[] = [
   },
   {
     name: "run-uat (post-completion)",
-    match: async ({ state, mid, basePath, prefs, sessionProvider, sessionAuthMode, activeTools, sessionBaseUrl }) => {
+    match: async ({
+      state,
+      mid,
+      basePath,
+      prefs,
+      sessionProvider,
+      sessionAuthMode,
+      activeTools,
+      registeredTools,
+      sessionBaseUrl,
+    }) => {
       const needsRunUat = await checkNeedsRunUat(basePath, mid, state, prefs);
       if (!needsRunUat) return null;
       const { sliceId, uatType } = needsRunUat;
@@ -753,6 +765,7 @@ export const DISPATCH_RULES: DispatchRule[] = [
       const browserToolError = getUatBrowserToolSupportError({
         uatType,
         activeTools,
+        registeredTools,
         milestoneId: mid,
         sliceId,
       });

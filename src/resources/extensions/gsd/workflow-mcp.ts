@@ -3,6 +3,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRequiredWorkflowToolsForUnit } from "./unit-tool-contracts.js";
+import { mcpToolMatchesBaseName } from "./mcp-tool-name.js";
 import {
   supportsStructuredQuestions,
   usesWorkflowMcpTransport,
@@ -374,9 +375,7 @@ export function getRequiredWorkflowToolsForAutoUnit(unitType: string): string[] 
 function hasRequiredTool(requiredTool: string, activeTools: string[]): boolean {
   return activeTools.some((toolName) => {
     if (toolName === requiredTool) return true;
-    if (!toolName.startsWith("mcp__")) return false;
-    const toolSeparator = toolName.indexOf("__", "mcp__".length);
-    return toolSeparator >= 0 && toolName.slice(toolSeparator + 2) === requiredTool;
+    return mcpToolMatchesBaseName(toolName, requiredTool);
   });
 }
 

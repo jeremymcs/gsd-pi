@@ -320,7 +320,7 @@ export type {
   UnitRouting,
   StartModel,
 } from "./auto/session.js";
-import { autoSession as s } from "./auto-runtime-state.js";
+import { autoSession as s, getAutoRuntimeSnapshot } from "./auto-runtime-state.js";
 import { gsdHome } from "./gsd-home.js";
 import { createWorkspace, scopeMilestone } from "./workspace.js";
 import {
@@ -791,6 +791,7 @@ export { type AutoDashboardData } from "./auto-dashboard.js";
 
 export function getAutoDashboardData(): AutoDashboardData {
   const ledger = getLedger();
+  const runtimeSnapshot = getAutoRuntimeSnapshot();
   const totals = ledger ? getProjectTotals(ledger.units) : null;
   const sessionId = s.cmdCtx?.sessionManager?.getSessionId?.() ?? null;
   const rtkSavings = sessionId && s.basePath
@@ -822,6 +823,7 @@ export function getAutoDashboardData(): AutoDashboardData {
     pendingCaptureCount,
     rtkSavings,
     rtkEnabled,
+    toolSurface: runtimeSnapshot.toolSurface,
   };
 }
 

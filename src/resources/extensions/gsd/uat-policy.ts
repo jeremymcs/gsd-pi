@@ -4,6 +4,7 @@
 import { extractUatType } from "./files.js";
 import type { UatType } from "./files.js";
 import { hasBrowserRequiredText } from "./browser-evidence.js";
+import { parseMcpToolName } from "./mcp-tool-name.js";
 
 export type { UatType } from "./files.js";
 
@@ -122,31 +123,39 @@ export function uatTypeIncludesBrowser(uatType: string | undefined): boolean {
   return isUatType(uatType) && UAT_MODE_POLICIES[uatType].browserTools;
 }
 
-function canonicalPresentedToolName(toolName: string): string {
-  if (!toolName.startsWith("mcp__")) return toolName;
-  const toolSeparator = toolName.indexOf("__", "mcp__".length);
-  return toolSeparator >= 0 ? toolName.slice(toolSeparator + 2) : toolName;
-}
-
 export function isUatBrowserToolName(toolName: string): boolean {
-  return canonicalPresentedToolName(toolName).startsWith("browser_");
+  const parsed = parseMcpToolName(toolName);
+  const canonicalName = parsed?.toolName ?? toolName;
+  if (canonicalName.startsWith("browser_")) return true;
+  return parsed?.toolName === "*" && parsed.serverName.toLowerCase().includes("browser");
 }
 
 export function hasUatBrowserToolSurface(activeTools: readonly string[] | undefined): boolean {
   return Array.isArray(activeTools) && activeTools.some(isUatBrowserToolName);
 }
 
+export function resolveUatBrowserToolSurface(options: {
+  activeTools: readonly string[] | undefined;
+  registeredTools?: readonly string[] | undefined;
+}): readonly string[] | undefined {
+  const surfaces = [options.activeTools, options.registeredTools].filter(Array.isArray);
+  if (surfaces.length === 0) return undefined;
+  return [...new Set(surfaces.flat())];
+}
+
 export function getUatBrowserToolSupportError(options: {
   uatType: UatType;
   activeTools: readonly string[] | undefined;
+  registeredTools?: readonly string[] | undefined;
   milestoneId: string;
   sliceId: string;
 }): string | null {
   if (!uatTypeIncludesBrowser(options.uatType)) return null;
-  if (!Array.isArray(options.activeTools)) return null;
-  if (hasUatBrowserToolSurface(options.activeTools)) return null;
+  const toolSurface = resolveUatBrowserToolSurface(options);
+  if (!toolSurface) return null;
+  if (hasUatBrowserToolSurface(toolSurface)) return null;
 
-  return `Cannot dispatch browser-backed run-uat for ${options.milestoneId}/${options.sliceId}: UAT mode "${options.uatType}" requires browser tools, but the active tool surface has none. Enable browser tools or change the UAT to a runtime-executable Playwright command, then rerun /gsd auto.`;
+  return `Cannot dispatch browser-backed run-uat for ${options.milestoneId}/${options.sliceId}: UAT mode "${options.uatType}" requires browser tools, but the run-uat tool surface has none. Enable browser tools or change the UAT to a runtime-executable Playwright command, then rerun /gsd auto.`;
 }
 
 export function isPartialEligibleUatType(uatType: UatType | undefined): boolean {

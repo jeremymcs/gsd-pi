@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 
 import type { ClaudeCodeMcpConfig } from "./preferences-types.js";
+import { toMcpWildcardToolName } from "./mcp-tool-name.js";
 import { resolveModelMcpConfig } from "./preferences-mcp.js";
 
 interface McpJsonFile {
@@ -159,5 +160,5 @@ export function computeMcpDisallowedTools(
     blocked.delete(workflowServerName);
   }
 
-  return [...blocked].map((name) => `mcp__${name}__*`);
+  return [...blocked].map(toMcpWildcardToolName);
 }

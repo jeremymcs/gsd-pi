@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   RUN_UAT_BROWSER_TOOL_NAMES,
+  resolveToolPresentationPlan,
   buildRunUatResultPresentation,
   buildRunUatPresentationForType,
   RUN_UAT_READ_ONLY_TOOL_NAMES,
@@ -177,6 +178,33 @@ test("browser-executable UAT presentation uses direct browser tools", () => {
     assert.ok(presentation.presentedTools.includes(toolName), `presentation should include browser tool ${toolName}`);
   }
   assert.ok(!presentation.presentedTools.some((toolName) => toolName.startsWith("mcp__gsd-browser__")));
+});
+
+test("run-uat presentation plans carry typed tool-surface snapshots", () => {
+  const plan = resolveToolPresentationPlan({
+    phase: "run-uat",
+    surface: "mcp",
+    workflowMcpServerName: "gsd-workflow",
+    availableToolNames: [
+      "gsd_uat_exec",
+      "gsd_uat_result_save",
+      "read",
+    ],
+    includeBrowserTools: [],
+  });
+
+  assert.equal(plan.toolSurface.source, "presentation-plan");
+  assert.equal(plan.toolSurface.phase, "run-uat");
+  assert.deepEqual(plan.toolSurface.scopedToolNames, [
+    "gsd_uat_exec",
+    "gsd_uat_result_save",
+    "read",
+  ]);
+  assert.deepEqual(plan.toolSurface.presentedToolNames, [
+    "mcp__gsd-workflow__gsd_uat_exec",
+    "mcp__gsd-workflow__gsd_uat_result_save",
+    "read",
+  ]);
 });
 
 test("live-runtime and mixed UAT presentations also surface browser tools", () => {

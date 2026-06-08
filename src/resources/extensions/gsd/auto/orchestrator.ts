@@ -48,7 +48,7 @@ import { WorktreeStateProjection } from "../worktree-state-projection.js";
 import { WorktreeLifecycle } from "../worktree-lifecycle.js";
 import { createWorkspace, scopeMilestone } from "../workspace.js";
 import { supportsStructuredQuestions } from "../workflow-mcp.js";
-import { getToolBaselineSnapshot } from "../auto-model-selection.js";
+import { getRegisteredToolSnapshot, getToolBaselineSnapshot } from "../auto-model-selection.js";
 import { deriveState } from "../state.js";
 import { parseUnitId } from "../unit-id.js";
 import { isClosedStatus } from "../status-guards.js";
@@ -207,6 +207,7 @@ export async function decideOrchestratorDispatch(
   // active set may be narrowed by the prior unit before selectAndApplyModel
   // restores it, causing false transport-preflight failures (#477 follow-up).
   const activeTools = getToolBaselineSnapshot(pi);
+  const registeredTools = getRegisteredToolSnapshot(pi);
   // Mirrors runDispatch: deep-planning keeps approval gates in plain chat
   // because structured questions can be cancelled outside the chat turn on
   // some transports.
@@ -254,6 +255,7 @@ export async function decideOrchestratorDispatch(
     sessionProvider,
     modelRegistry,
     activeTools,
+    registeredTools,
     sessionAuthMode: authMode,
     sessionBaseUrl: ctx.model?.baseUrl,
   });

@@ -9,8 +9,19 @@ import {
   markToolEnd as markTrackedToolEnd,
   markToolStart as markTrackedToolStart,
 } from "./auto-tool-tracking.js";
+import {
+  createToolSurfaceSnapshot,
+  type ToolSurfaceSnapshot,
+  type ToolSurfaceSnapshotInput,
+} from "./tool-surface-snapshot.js";
+
+export type {
+  ToolSurfaceSnapshot,
+  ToolSurfaceSnapshotInput,
+} from "./tool-surface-snapshot.js";
 
 export const autoSession = new AutoSession();
+let currentToolSurfaceSnapshot: ToolSurfaceSnapshot | null = null;
 
 export type AutoRuntimeSnapshot = {
   active: boolean;
@@ -20,6 +31,7 @@ export type AutoRuntimeSnapshot = {
   orchestrationPhase?: "idle" | "running" | "paused" | "stopped" | "error";
   orchestrationTransitionCount?: number;
   orchestrationLastTransitionAt?: number;
+  toolSurface: ToolSurfaceSnapshot | null;
 };
 
 export function getAutoRuntimeSnapshot(): AutoRuntimeSnapshot {
@@ -32,7 +44,17 @@ export function getAutoRuntimeSnapshot(): AutoRuntimeSnapshot {
     orchestrationPhase: orchestrationStatus?.phase,
     orchestrationTransitionCount: orchestrationStatus?.transitionCount,
     orchestrationLastTransitionAt: orchestrationStatus?.lastTransitionAt,
+    toolSurface: autoSession.active || autoSession.paused ? currentToolSurfaceSnapshot : null,
   };
+}
+
+export function recordAutoToolSurfaceSnapshot(input: ToolSurfaceSnapshotInput): ToolSurfaceSnapshot {
+  currentToolSurfaceSnapshot = createToolSurfaceSnapshot(input);
+  return currentToolSurfaceSnapshot;
+}
+
+export function clearAutoToolSurfaceSnapshot(): void {
+  currentToolSurfaceSnapshot = null;
 }
 
 export function isAutoActive(): boolean {

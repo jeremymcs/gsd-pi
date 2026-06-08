@@ -1,6 +1,8 @@
 // Project/App: gsd-pi
 // File Purpose: Resolve how workflow units should ask the user for input.
 
+import { parseMcpToolName, toMcpToolName } from "./mcp-tool-name.js";
+
 export type StructuredQuestionsFlag = "true" | "false";
 
 export interface QuestionTransportOptions {
@@ -31,16 +33,6 @@ export interface WorkflowQuestionToolSurfaceResolution extends QuestionTransport
   disallowedTools: string[];
 }
 
-function mcpToolParts(toolName: string): { serverName: string; baseName: string } | null {
-  if (!toolName.startsWith("mcp__")) return null;
-  const toolSeparator = toolName.indexOf("__", "mcp__".length);
-  if (toolSeparator < 0) return null;
-  return {
-    serverName: toolName.slice("mcp__".length, toolSeparator),
-    baseName: toolName.slice(toolSeparator + 2),
-  };
-}
-
 function isWorkflowMcpServerName(serverName: string): boolean {
   const normalized = serverName.toLowerCase();
   return normalized === "gsd" || normalized.includes("workflow");
@@ -56,10 +48,10 @@ export function usesWorkflowMcpTransport(
 export function hasAskUserQuestionsTool(activeTools: string[]): boolean {
   return activeTools.some((toolName) => {
     if (toolName === "ask_user_questions") return true;
-    const mcp = mcpToolParts(toolName);
+    const mcp = parseMcpToolName(toolName);
     if (!mcp) return false;
-    if (mcp.baseName === "ask_user_questions") return true;
-    return mcp.baseName === "*" && isWorkflowMcpServerName(mcp.serverName);
+    if (mcp.toolName === "ask_user_questions") return true;
+    return mcp.toolName === "*" && isWorkflowMcpServerName(mcp.serverName);
   });
 }
 
@@ -114,7 +106,7 @@ export function resolveWorkflowQuestionToolSurface(
   options: WorkflowQuestionToolSurfaceOptions,
 ): WorkflowQuestionToolSurfaceResolution {
   const questionToolName = options.workflowServerName && !options.workflowExplicitlyBlocked
-    ? `mcp__${options.workflowServerName}__ask_user_questions`
+    ? toMcpToolName(options.workflowServerName, "ask_user_questions")
     : undefined;
   const activeTools = [
     ...options.exactWorkflowMcpTools,
@@ -134,7 +126,7 @@ export function resolveWorkflowQuestionToolSurface(
     (options.workflowMcpTools.length > 0 || exactQuestionToolAllowed);
   const disallowedTools =
     options.workflowServerName && transport.questionToolAvailable && !workflowQuestionsEnabled
-      ? [`mcp__${options.workflowServerName}__ask_user_questions`]
+      ? [toMcpToolName(options.workflowServerName, "ask_user_questions")]
       : [];
 
   return {

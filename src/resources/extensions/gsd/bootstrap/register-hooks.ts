@@ -27,6 +27,7 @@ import {
   isAutoPaused,
   markToolEnd,
   markToolStart,
+  recordAutoToolSurfaceSnapshot,
   recordToolInvocationError,
 } from "../auto-runtime-state.js";
 import { applyProviderPayloadPolicy } from "../provider-payload-policy.js";
@@ -50,6 +51,7 @@ import { getGuidedUnitContext } from "../guided-unit-context.js";
 import { registerPlanMilestoneSchemaRecovery } from "./plan-milestone-schema-recovery.js";
 import { AUTO_UNIT_SCOPED_TOOLS, RUN_UAT_BROWSER_TOOL_NAMES, isWorkflowAliasTool } from "../auto-unit-tool-scope.js";
 import { filterToolsForProvider } from "../model-router.js";
+import { mcpToolMatchesBaseName } from "../mcp-tool-name.js";
 import { RUN_UAT_READ_ONLY_TOOL_NAMES, RUN_UAT_WORKFLOW_TOOL_NAMES } from "../tool-presentation-plan.js";
 import { supportsSourceObservationsForUnit } from "../source-observations.js";
 
@@ -213,10 +215,7 @@ function resolveScopedToolNames(
     const scopedMatches: string[] = [];
 
     for (const activeName of activeToolNames) {
-      if (!activeName.startsWith("mcp__")) continue;
-      const toolSeparator = activeName.indexOf("__", "mcp__".length);
-      if (toolSeparator < 0) continue;
-      if (activeName.slice(toolSeparator + 2) === requested) {
+      if (mcpToolMatchesBaseName(activeName, requested)) {
         scopedMatches.push(activeName);
       }
     }
@@ -277,7 +276,7 @@ export function buildRunUatGsdToolSet(
   const resolved = [...new Set(scoped)];
 
   const unresolved = RUN_UAT_WORKFLOW_TOOL_NAMES.filter(
-    (tool) => !resolved.some((name) => name === tool || (name.startsWith("mcp__") && name.endsWith(`__${tool}`))),
+    (tool) => !resolved.some((name) => name === tool || mcpToolMatchesBaseName(name, tool)),
   );
   if (unresolved.length > 0) {
     safetyLogWarning(
@@ -369,11 +368,21 @@ function applyMinimalGsdToolSurface(pi: ExtensionAPI): void {
   if (isFullGsdToolSurfaceRequested()) return;
   const dash = getAutoRuntimeSnapshot();
   if (dash.active && dash.currentUnit) {
-    pi.setActiveTools(buildMinimalAutoGsdToolSet(
-      pi.getActiveTools(),
+    const currentToolNames = pi.getActiveTools();
+    const registeredToolNames = resolveRegisteredToolNames(pi, currentToolNames);
+    const scopedToolNames = buildMinimalAutoGsdToolSet(
+      currentToolNames,
       dash.currentUnit.type,
-      resolveRegisteredToolNames(pi, pi.getActiveTools()),
-    ));
+      registeredToolNames,
+    );
+    recordAutoToolSurfaceSnapshot({
+      source: "runtime-scope",
+      unitType: dash.currentUnit.type,
+      modelFacingToolNames: scopedToolNames,
+      registeredToolNames,
+      scopedToolNames,
+    });
+    pi.setActiveTools(scopedToolNames);
     return;
   }
   if (!isGeneralGsdToolScopingRequested()) return;
@@ -390,6 +399,13 @@ export function scopeGsdWorkflowToolsForDispatch(
   const scoped = unitType
     ? buildMinimalAutoGsdToolSet(current, unitType, registeredToolNames)
     : buildMinimalGsdWorkflowToolSet(current, registeredToolNames);
+  recordAutoToolSurfaceSnapshot({
+    source: "dispatch-scope",
+    unitType,
+    modelFacingToolNames: scoped,
+    registeredToolNames,
+    scopedToolNames: scoped,
+  });
   const toolsChanged = !(scoped.length === current.length && scoped.every((name, index) => name === current[index]));
   const canScopeSkills = unitHasSkillManifest(unitType) && pi.getVisibleSkills && pi.setVisibleSkills;
   if (!toolsChanged && !canScopeSkills) {
@@ -1460,25 +1476,44 @@ export function registerHooks(
       event.selectedModelProvider,
     ).compatible.filter((name) => !(dropAliases && isWorkflowAliasTool(name)));
     const guidedUnit = getGuidedUnitContext();
+    const requestRegisteredToolNames = guidedUnit?.unitType === "run-uat"
+      ? compatibleRegisteredToolNames
+      : registeredToolNames;
     const requestScoped = buildRequestScopedGsdToolSet(
       guidedUnit?.unitType === "run-uat" ? aliasFilteredCompatible : providerCompatible,
       event.requestCustomMessages,
-      guidedUnit?.unitType === "run-uat" ? compatibleRegisteredToolNames : registeredToolNames,
+      requestRegisteredToolNames,
       guidedUnit?.unitType,
     );
     if (requestScoped) {
+      recordAutoToolSurfaceSnapshot({
+        source: "provider-adjustment",
+        unitType: guidedUnit?.unitType,
+        modelFacingToolNames: requestScoped,
+        registeredToolNames: requestRegisteredToolNames,
+        scopedToolNames: requestScoped,
+      });
       return { toolNames: requestScoped };
     }
     const dash = getAutoRuntimeSnapshot();
     if (dash.active && dash.currentUnit) {
+      const registeredForUnit = dash.currentUnit.type === "run-uat"
+        ? compatibleRegisteredToolNames
+        : resolveRegisteredToolNames(pi, event.activeToolNames);
+      const scopedToolNames = buildMinimalAutoGsdToolSet(
+        dash.currentUnit.type === "run-uat" ? aliasFilteredCompatible : providerCompatible,
+        dash.currentUnit.type,
+        registeredForUnit,
+      );
+      recordAutoToolSurfaceSnapshot({
+        source: "provider-adjustment",
+        unitType: dash.currentUnit.type,
+        modelFacingToolNames: scopedToolNames,
+        registeredToolNames: registeredForUnit,
+        scopedToolNames,
+      });
       return {
-        toolNames: buildMinimalAutoGsdToolSet(
-          dash.currentUnit.type === "run-uat" ? aliasFilteredCompatible : providerCompatible,
-          dash.currentUnit.type,
-          dash.currentUnit.type === "run-uat"
-            ? compatibleRegisteredToolNames
-            : resolveRegisteredToolNames(pi, event.activeToolNames),
-        ),
+        toolNames: scopedToolNames,
       };
     }
     if (isGeneralGsdToolScopingRequested()) {

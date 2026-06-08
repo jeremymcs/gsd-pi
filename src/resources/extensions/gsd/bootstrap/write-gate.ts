@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { minimatch } from "minimatch";
 
 import { GSD_PHASE_SCOPE_DISPLAY_REASON, shouldBlockAutoUnitToolCall } from "../auto-unit-tool-scope.js";
+import { stripMcpToolPrefix } from "../mcp-tool-name.js";
 import { getIsolationMode } from "../preferences.js";
 import { compileSubagentPermissionContract, type ToolsPolicy } from "../unit-context-manifest.js";
 import { logWarning } from "../workflow-logger.js";
@@ -123,9 +124,7 @@ const GATE_SAFE_TOOLS = new Set([
 ]);
 
 export function canonicalToolName(toolName: string): string {
-  if (!toolName.startsWith("mcp__")) return toolName;
-  const toolSeparator = toolName.indexOf("__", "mcp__".length);
-  return toolSeparator >= 0 ? toolName.slice(toolSeparator + 2) : toolName;
+  return stripMcpToolPrefix(toolName);
 }
 
 export interface WriteGateSnapshot {

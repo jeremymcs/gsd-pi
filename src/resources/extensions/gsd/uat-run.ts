@@ -103,7 +103,7 @@ function mergeBlockedTools(
 ): UatPresentationInput["blockedTools"] {
   const merged = new Map<string, { name: string; reason: string }>();
   for (const entry of [...(current ?? []), ...canonical]) {
-    merged.set(canonicalWorkflowToolName(parseMcpToolName(entry.name)?.tool ?? entry.name), entry);
+    merged.set(canonicalWorkflowToolName(parseMcpToolName(entry.name)?.toolName ?? entry.name), entry);
   }
   return [...merged.values()];
 }
@@ -301,7 +301,7 @@ function quoteToolNames(toolNames: readonly string[]): string {
 function validateCanonicalPresentation(params: UatResultSaveParams): string | null {
   const errors: string[] = [];
   for (const toolName of params.presentation.presentedTools) {
-    const baseName = parseMcpToolName(toolName)?.tool ?? toolName;
+    const baseName = parseMcpToolName(toolName)?.toolName ?? toolName;
     const canonical = canonicalWorkflowToolName(baseName);
     if (canonical !== baseName) {
       errors.push(`presentation tool "${toolName}" uses an alias; use canonical "${canonical}"`);
@@ -310,7 +310,7 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
 
   const presentedCanonical = new Set(
     params.presentation.presentedTools.map((toolName) =>
-      canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName)
+      canonicalWorkflowToolName(parseMcpToolName(toolName)?.toolName ?? toolName)
     ),
   );
   const missingRequiredTools = RUN_UAT_WORKFLOW_TOOL_NAMES.filter(
@@ -325,11 +325,11 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
   const forbiddenCanonical = new Set(
     RUN_UAT_FORBIDDEN_TOOL_NAMES
       .filter((toolName) => !toolName.includes("*"))
-      .map((toolName) => canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName)),
+      .map((toolName) => canonicalWorkflowToolName(parseMcpToolName(toolName)?.toolName ?? toolName)),
   );
   const forbiddenPresentedTools: string[] = [];
   for (const toolName of params.presentation.presentedTools) {
-    const canonical = canonicalWorkflowToolName(parseMcpToolName(toolName)?.tool ?? toolName);
+    const canonical = canonicalWorkflowToolName(parseMcpToolName(toolName)?.toolName ?? toolName);
     if (toolName === "mcp__gsd-workflow__*" || forbiddenCanonical.has(canonical)) {
       forbiddenPresentedTools.push(toolName);
     }
@@ -342,7 +342,7 @@ function validateCanonicalPresentation(params: UatResultSaveParams): string | nu
 
   const blockedCanonical = new Set(
     params.presentation.blockedTools.map((entry) =>
-      canonicalWorkflowToolName(parseMcpToolName(entry.name)?.tool ?? entry.name)
+      canonicalWorkflowToolName(parseMcpToolName(entry.name)?.toolName ?? entry.name)
     ),
   );
   const missingBlockedTools = ["gsd_exec", "gsd_summary_save", "gsd_save_gate_result"].filter(
