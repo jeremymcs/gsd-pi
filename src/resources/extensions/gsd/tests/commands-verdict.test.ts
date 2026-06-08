@@ -10,7 +10,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -485,4 +485,41 @@ test("state.ts needs-remediation blocker messages reference /gsd verdict", async
     occurrences.length >= 2,
     `expected at least 2 references to /gsd verdict in state.ts blockers, found ${occurrences.length}`,
   );
+});
+
+// ─── WAL checkpoint regression (#563) ───────────────────────────────────
+
+test("handleVerdict pass checkpoints WAL so subsequent processes see the updated verdict (#563)", async () => {
+  // Regression: before the fix, executeValidateMilestone wrote the assessment
+  // only into the WAL file.  The next /gsd auto invocation (a new process)
+  // opened gsd.db directly and saw stale pre-verdict data because the WAL
+  // had not been flushed.  The fix adds checkpointDatabase() after a
+  // successful verdict so the WAL is truncated and gsd.db is self-contained.
+  const base = makeBase();
+  try {
+    openTestDb(base);
+    seedMilestone("M001", "Checkpoint Test Milestone");
+    seedSlice("M001", "S01", "complete");
+    writeValidation(base, "M001", "needs-attention");
+
+    const { ctx } = makeMockCtx();
+    await handleVerdict("pass --milestone M001", ctx, base);
+
+    // After handleVerdict succeeds, PRAGMA wal_checkpoint(TRUNCATE) must have
+    // run.  The WAL file is truncated to zero bytes — a new process reading
+    // gsd.db directly sees the updated verdict without needing the WAL.
+    const walPath = join(base, ".gsd", "gsd.db-wal");
+    if (existsSync(walPath)) {
+      const { size } = statSync(walPath);
+      assert.equal(
+        size,
+        0,
+        "WAL must be zero bytes after handleVerdict pass — checkpointDatabase() was not called (#563)",
+      );
+    }
+  } finally {
+    closeDatabase();
+    invalidateStateCache();
+    cleanup(base);
+  }
 });
