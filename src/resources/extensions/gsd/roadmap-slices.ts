@@ -193,8 +193,9 @@ export function parseRoadmapSlices(content: string): RoadmapSliceEntry[] {
       const fallbackDepsMatch = depsMatch ? null : rest.match(/`depends:\[(\[(?:[^\]]*)\](?:,\[(?:[^\]]*)\])*)\]`/);
       const rawDepContent = (depsMatch ?? fallbackDepsMatch)?.[1] ?? "";
       const SLICE_ID_RE = /^[A-Za-z]+\d+$/;
+      const RANGE_RE = /^[A-Za-z]+\d+(?:-|\.\.)[A-Za-z]+\d+$/;
       const rawDepParts = rawDepContent.trim()
-        ? rawDepContent.replace(/\[|\]/g, "").split(",").map(s => s.trim()).filter(s => SLICE_ID_RE.test(s))
+        ? rawDepContent.replace(/\[|\]/g, "").split(",").map(s => s.trim()).filter(s => SLICE_ID_RE.test(s) || RANGE_RE.test(s))
         : [];
       const depends = expandDependencies(rawDepParts);
 
