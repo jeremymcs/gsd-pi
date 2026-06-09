@@ -454,6 +454,14 @@ jobs:
           pnpm run verify:version-sync && \
           echo "All package.json files are valid"
 
+      # typecheck:extensions resolves @gsd/* workspace imports through each
+      # package's dist/*.d.ts (NodeNext), which only exist after a build. The
+      # @dev job builds core before its parity typecheck; the prod job's build
+      # comes later ("Build release"), so build core here too or the typecheck
+      # fails with TS2307 "Cannot find module '@gsd/...'".
+      - name: Build core
+        run: pnpm run build:core
+
       - name: Typecheck extensions (prepublishOnly parity)
         run: pnpm run typecheck:extensions
 
