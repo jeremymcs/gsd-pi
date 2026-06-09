@@ -40,7 +40,7 @@ export function findPlaywrightTestScript(projectRoot: string): string | null {
   if (!pkg?.scripts) return null;
   for (const [name, value] of Object.entries(pkg.scripts)) {
     if (typeof value !== "string") continue;
-    if (/\bplaywright\b/.test(value)) {
+    if (/\bplaywright\s+test\b/.test(value)) {
       return `npm run ${name}`;
     }
   }

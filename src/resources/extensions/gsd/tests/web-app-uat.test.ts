@@ -107,6 +107,36 @@ describe("web-app-uat guidance", () => {
     }
   });
 
+  test("does not treat playwright install script as a test command", () => {
+    const root = mkdtempSync(join(tmpdir(), "gsd-web-uat-"));
+    try {
+      scaffoldProject(root, {
+        dependencies: { react: "19.0.0" },
+        devDependencies: { "@playwright/test": "1.60.0" },
+        // postinstall runs 'playwright install' (browser setup), not a test
+        scripts: { postinstall: "playwright install", "test:e2e": "npx playwright test" },
+      });
+      // install script must not be returned; the real test script should be
+      assert.equal(findPlaywrightTestScript(root), "npm run test:e2e");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("returns null when only an install script mentions playwright", () => {
+    const root = mkdtempSync(join(tmpdir(), "gsd-web-uat-"));
+    try {
+      scaffoldProject(root, {
+        dependencies: { react: "19.0.0" },
+        devDependencies: { "@playwright/test": "1.60.0" },
+        scripts: { postinstall: "playwright install --with-deps" },
+      });
+      assert.equal(findPlaywrightTestScript(root), null);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("detects static sites via index.html", () => {
     const root = mkdtempSync(join(tmpdir(), "gsd-web-uat-"));
     try {
