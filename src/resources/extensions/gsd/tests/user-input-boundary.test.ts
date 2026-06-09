@@ -78,6 +78,7 @@ test("isAwaitingUserInput does not trigger on thinking-block approval phrases", 
 });
 
 test("messageHasPendingAskUserQuestionsTool detects in-flight structured question tools", () => {
+  // state: "running" — explicitly pending
   assert.equal(
     messageHasPendingAskUserQuestionsTool({
       role: "assistant",
@@ -88,11 +89,39 @@ test("messageHasPendingAskUserQuestionsTool detects in-flight structured questio
     }),
     true,
   );
+
+  // no state, no externalResult — streaming block that hasn't completed yet
+  assert.equal(
+    messageHasPendingAskUserQuestionsTool({
+      role: "assistant",
+      content: [
+        { type: "toolCall", name: "ask_user_questions" },
+      ],
+    }),
+    true,
+  );
+
+  // state: "completed" — legacy state-based completion
   assert.equal(
     messageHasPendingAskUserQuestionsTool({
       role: "assistant",
       content: [
         { type: "toolCall", name: "ask_user_questions", state: "completed" },
+      ],
+    }),
+    false,
+  );
+
+  // externalResult present — Claude Code signals completion via externalResult, not state
+  assert.equal(
+    messageHasPendingAskUserQuestionsTool({
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          name: "ask_user_questions",
+          externalResult: { content: [{ type: "text", text: "answer" }], isError: false },
+        },
       ],
     }),
     false,
