@@ -56,6 +56,8 @@ export * from "./db/writers/reconcile.js";
 export * from "./db/writers/import-restore.js";
 // Query Module (read-only seam) — extracted from the single-writer file.
 export * from "./db/queries.js";
+// Domain Write Operations (Hierarchy Status Cascades).
+export * from "./db/writers/cascades.js";
 
 export type { ArtifactRow, MilestoneRow } from "./db-milestone-artifact-rows.js";
 export type { ActiveTaskSummary, IdStatusSummary, TaskStatusCounts } from "./db-lightweight-query-rows.js";
