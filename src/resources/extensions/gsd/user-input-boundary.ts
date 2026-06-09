@@ -183,6 +183,21 @@ export function isAwaitingApprovalBoundary(messages: unknown[] | undefined): boo
   return hasApprovalQuestion(text);
 }
 
+/** True when an assistant message already has an in-flight ask_user_questions tool call. */
+export function messageHasPendingAskUserQuestionsTool(message: unknown): boolean {
+  if (!message || typeof message !== "object") return false;
+  const content = (message as { content?: unknown }).content;
+  if (!Array.isArray(content)) return false;
+  return content.some((block) => {
+    if (!block || typeof block !== "object") return false;
+    const tool = block as { type?: string; name?: string; state?: string };
+    if (tool.type !== "toolCall") return false;
+    const name = String(tool.name ?? "").toLowerCase();
+    if (!name.includes("ask_user_questions")) return false;
+    return tool.state !== "completed" && tool.state !== "done";
+  });
+}
+
 export function shouldPauseForUserApprovalQuestion(
   unitType: string | undefined,
   messages: unknown[] | undefined,
