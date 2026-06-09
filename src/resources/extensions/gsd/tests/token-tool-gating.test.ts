@@ -613,6 +613,17 @@ test("buildMinimalAutoGsdToolSet resolves MCP-scoped gsd_memory_query and gsd_ca
   );
 });
 
+// ── Regression #627: auto-mode cannot run plan-milestone because gsd_plan_slice is missing ──
+// plan-milestone units require gsd_plan_slice as a required workflow tool.
+// MINIMAL_GSD_TOOL_NAMES must include it so resolveScopedToolNames exposes it.
+
+test("MINIMAL_GSD_TOOL_NAMES includes gsd_plan_slice (regression #627)", () => {
+  assert.ok(
+    (MINIMAL_GSD_TOOL_NAMES as readonly string[]).includes("gsd_plan_slice"),
+    "MINIMAL_GSD_TOOL_NAMES must include gsd_plan_slice for plan-milestone auto-mode support",
+  );
+});
+
 test("applyUnitSkillVisibility sets manifest or clears for wildcard", () => {
   const calls: Array<string[] | undefined> = [];
   applyUnitSkillVisibility({
