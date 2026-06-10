@@ -1,6 +1,9 @@
 /**
  * Actionable remediation hints when auto-mode pauses on provider/model errors.
+ * Render with formatGuidance from the Guidance module.
  */
+
+import type { Guidance } from "./guidance.js";
 
 export interface ProviderErrorGuidanceInput {
   errorMsg: string;
@@ -11,8 +14,6 @@ export interface ProviderErrorGuidanceInput {
   preferencesPath?: string;
   hasConfiguredFallbacks?: boolean;
 }
-
-import { formatGuidance, type Guidance } from "./guidance.js";
 
 export type ProviderErrorGuidance = Guidance;
 
@@ -128,7 +129,3 @@ export function resolveProviderErrorGuidance(input: ProviderErrorGuidanceInput):
   return { summary, steps };
 }
 
-/** Flatten guidance into a pause banner / notification string. */
-export function formatProviderErrorGuidance(guidance: ProviderErrorGuidance): string {
-  return formatGuidance(guidance);
-}

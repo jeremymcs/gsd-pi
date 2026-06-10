@@ -360,8 +360,7 @@ export function formatAutoStopNotification(prefix: string, totals: { cost: numbe
   ].join("\n");
 }
 
-const formatAutoStopDisplayReason = stopNoticeDisplayReason;
-export const formatAutoStopNotificationPrefix = formatStopNoticePrefix;
+export { formatStopNoticePrefix as formatAutoStopNotificationPrefix } from "./stop-notice.js";
 
 function clearSessionModelOverrideForCommandSession(ctx?: ExtensionContext | null): void {
   const sessionId =
@@ -1459,8 +1458,8 @@ export async function stopAuto(
 ): Promise<void> {
   if (!s.active && !s.paused) return;
   const loadedPreferences = loadEffectiveGSDPreferences(s.basePath || undefined)?.preferences;
-  const stopNotificationPrefix = formatAutoStopNotificationPrefix(reason);
-  const displayReason = formatAutoStopDisplayReason(reason);
+  const stopNotificationPrefix = formatStopNoticePrefix(reason);
+  const displayReason = stopNoticeDisplayReason(reason);
   const isHeadlessStop = process.env.GSD_HEADLESS === "1";
   const completionStopRequested = Boolean(options.completionWidget);
   const preserveCloseoutTranscript = !isHeadlessStop && (

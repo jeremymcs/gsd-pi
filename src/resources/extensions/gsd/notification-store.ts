@@ -126,9 +126,9 @@ export function appendNotification(
 export function readNotifications(basePath?: string, filter?: NotificationMeta): NotificationEntry[] {
   const bp = basePath ?? _basePath;
   if (!bp) return [];
-  let entries = _readEntriesFromDisk(bp);
-  if (filter?.kind) entries = entries.filter((e) => e.kind === filter.kind);
-  if (filter?.scope) entries = entries.filter((e) => e.scope === filter.scope);
+  const entries = _readEntriesFromDisk(bp).filter(
+    (e) => (!filter?.kind || e.kind === filter.kind) && (!filter?.scope || e.scope === filter.scope),
+  );
   return entries.reverse();
 }
 

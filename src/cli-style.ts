@@ -1,9 +1,9 @@
 /**
- * Terminal presentation module for CLI-side notices — the single vocabulary
- * for how the gsd CLI styles warnings, hints, and names on stderr.
- * Pairs with the extension-side glyph set in resources/extensions/shared/ui.ts;
- * this module covers the pre-session CLI surfaces (banners, update checks,
- * worktree commands) that render with chalk directly.
+ * Terminal presentation helpers for CLI-side notices on stderr — warnings,
+ * hints, and names. Pairs with the extension-side glyph set in
+ * resources/extensions/shared/ui.ts. Adopt incrementally: banner-shaped CLI
+ * surfaces (worktree banners today; update checks et al. as they're touched)
+ * should render through these instead of ad-hoc chalk.
  */
 
 import chalk from 'chalk'

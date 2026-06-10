@@ -12,8 +12,6 @@
  */
 
 import {
-  PAUSED_NOTICE_PREFIXES,
-  TERMINAL_NOTICE_PREFIXES,
   isBlockedNoticeMessage,
   isManualResolutionNotice,
   isPauseNotice,
@@ -83,8 +81,6 @@ export function mapStatusToExitCode(status: string): number {
  *
  * Blocked detection is separate — checked via isBlockedNotification.
  */
-export const PAUSED_PREFIXES: readonly string[] = PAUSED_NOTICE_PREFIXES
-export const TERMINAL_PREFIXES: readonly string[] = TERMINAL_NOTICE_PREFIXES
 export const IDLE_TIMEOUT_MS = 15_000
 // new-milestone is a long-running creative task where the LLM may pause
 // between tool calls (e.g. after mkdir, before writing files). Use a

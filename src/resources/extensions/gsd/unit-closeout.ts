@@ -90,7 +90,7 @@ const defaultDeps: UnitCloseoutDeps = {
     }
   },
   commit: (basePath, unitType, unitId) => autoCommitCurrentBranch(basePath, unitType, unitId),
-  notify: (message, severity) => appendNotification(message, severity),
+  notify: (message, severity) => appendNotification(message, severity, "notify", { kind: "unit-closeout" }),
 };
 
 export function closeUnit(request: UnitCloseoutRequest, deps: UnitCloseoutDeps = defaultDeps): UnitCloseoutResult {
