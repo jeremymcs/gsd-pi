@@ -24,6 +24,7 @@ import type {
   UnitContextManifest,
 } from "../unit-context-manifest.ts";
 import { KNOWN_UNIT_TYPES, UNIT_MANIFESTS } from "../unit-context-manifest.ts";
+import { getUnitToolSurfaceContract } from "../unit-tool-contracts.ts";
 import {
   buildExecuteTaskPrompt,
   buildGateEvaluatePrompt,
@@ -165,10 +166,30 @@ test("Context Mode composer: every known eligible unit renders its configured la
     }
     assert.ok(out.startsWith("## Context Mode"), `${unitType} should render standalone Context Mode heading`);
     assert.match(out, new RegExp(`Lane: \\*\\*${laneLabelByMode[manifest.contextMode]} lane\\*\\*\\.`, "i"));
-    assert.match(out, /`gsd_exec`/, `${unitType} should mention gsd_exec`);
-    assert.match(out, /`gsd_exec_search`/, `${unitType} should mention gsd_exec_search`);
+    const forbidden = getUnitToolSurfaceContract(unitType)?.forbiddenGsdTools ?? {};
+    if ("gsd_exec" in forbidden) {
+      // Units that forbid gsd_exec (run-uat) have it stripped from their
+      // Claude Code dispatch surface; guidance steering to it produces
+      // "No such tool available" loops in the dispatched agent.
+      assert.doesNotMatch(out, /`gsd_exec`/, `${unitType} forbids gsd_exec; guidance must not steer to it`);
+      assert.doesNotMatch(out, /`gsd_exec_search`/, `${unitType} guidance must not steer to gsd_exec_search`);
+      assert.match(out, /`gsd_uat_exec`/, `${unitType} guidance should steer to gsd_uat_exec instead`);
+    } else {
+      assert.match(out, /`gsd_exec`/, `${unitType} should mention gsd_exec`);
+      assert.match(out, /`gsd_exec_search`/, `${unitType} should mention gsd_exec_search`);
+    }
     assert.match(out, /`gsd_resume`/, `${unitType} should mention gsd_resume`);
   }
+});
+
+test("Context Mode composer: run-uat guidance steers to gsd_uat_exec in both render modes", () => {
+  const nested = composeContextModeInstructions("run-uat", { enabled: true, renderMode: "nested" });
+  assert.match(nested, /^Context Mode \(verification lane\): /);
+  assert.match(nested, /`gsd_uat_exec`/);
+  assert.doesNotMatch(nested, /`gsd_exec`/);
+  const standalone = composeContextModeInstructions("run-uat", { enabled: true, renderMode: "standalone" });
+  assert.match(standalone, /`gsd_uat_exec`/);
+  assert.doesNotMatch(standalone, /`gsd_exec`/);
 });
 
 test("Context Mode composer: workflow-preferences and research-decision render no Context Mode block", () => {
