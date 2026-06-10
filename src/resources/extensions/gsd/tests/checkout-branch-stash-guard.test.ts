@@ -159,4 +159,30 @@ describe("checkoutBranchWithStashGuard", () => {
     const stashList = git(["stash", "list"], repo).trim();
     assert.equal(stashList, "");
   });
+
+  test("auto-resolves non-.gsd untracked restore collisions (e.g. harness config outside .gsd/)", (t) => {
+    const repo = createRepo(t);
+    // Target branch has a harness config file committed; source (main) has it untracked.
+    // Use a path not affected by global gitignore rules (unlike .claude/settings.local.json).
+    git(["checkout", "-b", "milestone/M001"], repo);
+    mkdirSync(join(repo, ".harness"), { recursive: true });
+    writeFileSync(join(repo, ".harness", "settings.json"), "{\"theme\":\"dark\"}\n");
+    git(["add", ".harness/settings.json"], repo);
+    git(["commit", "-m", "add harness settings"], repo);
+    git(["checkout", "main"], repo);
+
+    mkdirSync(join(repo, ".harness"), { recursive: true });
+    writeFileSync(join(repo, ".harness", "settings.json"), "{\"theme\":\"light\"}\n");
+
+    checkoutBranchWithStashGuard(repo, "milestone/M001", "test-non-gsd-untracked-collision");
+
+    const branch = git(["branch", "--show-current"], repo).trim();
+    assert.equal(branch, "milestone/M001");
+    const wtContent = readFileSync(join(repo, ".harness", "settings.json"), "utf8");
+    assert.equal(wtContent, "{\"theme\":\"dark\"}\n");
+    const status = git(["status", "--porcelain"], repo).trim();
+    assert.equal(status, "");
+    const stashList = git(["stash", "list"], repo).trim();
+    assert.equal(stashList, "");
+  });
 });

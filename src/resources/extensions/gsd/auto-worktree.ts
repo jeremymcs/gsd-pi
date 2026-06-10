@@ -2045,8 +2045,6 @@ export function mergeMilestoneToMain(
       const isUntrackedRestoreFailure = stashPopMessage.includes("could not restore untracked files from stash");
       const gsdContentConflicts: string[] = [];
       const alreadyExists = stashAlreadyExistsFilesFromError(e);
-      const gsdAlreadyExists = alreadyExists.filter((f) => f.startsWith(".gsd/"));
-      const nonGsdAlreadyExists = alreadyExists.filter((f) => !f.startsWith(".gsd/"));
 
       // Untracked-file restore failures can leave marker conflicts in tracked
       // .gsd JSONL files without producing `U` status entries.
@@ -2110,11 +2108,12 @@ export function mergeMilestoneToMain(
       } else if (
         gsdUU.length === 0 &&
         nonGsdUU.length === 0 &&
-        gsdAlreadyExists.length > 0 &&
-        nonGsdAlreadyExists.length === 0
+        alreadyExists.length > 0
       ) {
-        // Untracked-file restore failure from stash pop where all collided
-        // paths are .gsd/ artifacts that already exist after merge.
+        // Untracked-file restore failure from stash pop where all collided paths
+        // already exist after merge (committed on target). Safe to drop the stash
+        // for the full alreadyExists set — they were untracked on source by
+        // definition of the "already exists, no checkout" failure.
         if (stashRefForDrop) {
           try {
             execFileSync("git", ["stash", "drop", stashRefForDrop], {
@@ -2132,10 +2131,6 @@ export function mergeMilestoneToMain(
         // Non-.gsd conflicts remain — leave stash for manual resolution
         logWarning("reconcile", "Stash pop conflict on non-.gsd files after merge", {
           files: nonGsdUU.join(", "),
-        });
-      } else if (nonGsdAlreadyExists.length > 0) {
-        logWarning("reconcile", "Stash pop restore collision on non-.gsd files after merge", {
-          files: nonGsdAlreadyExists.join(", "),
         });
       } else {
         logWarning(

@@ -257,23 +257,23 @@ export function checkoutBranchWithStashGuard(
           : "";
       const stashPopMessage = `${stderrText}\n${msg}`.trim();
       const alreadyExists = stashAlreadyExistsFilesFromError(popErr);
-      const gsdAlreadyExists = alreadyExists.filter((f) => f.startsWith(".gsd/"));
-      const nonGsdAlreadyExists = alreadyExists.filter((f) => !f.startsWith(".gsd/"));
       const isUntrackedRestoreFailure = stashPopMessage.includes("could not restore untracked files from stash");
       const stashRefForDrop = stashRefFromError(popErr);
       const nonGsdUnmerged = nativeConflictFiles(basePath).filter((f) => !f.startsWith(".gsd/"));
       const gsdContentConflicts = isUntrackedRestoreFailure
         ? gsdJsonlFilesWithConflictMarkers(basePath)
         : [];
-      const gsdConflictFiles = [...new Set([...gsdAlreadyExists, ...gsdContentConflicts])];
+      // Resolve ALL untracked-collision files by accepting HEAD — files in
+      // alreadyExists were untracked on the source branch by definition of the
+      // "already exists, no checkout" failure, so target HEAD is authoritative.
+      const resolvable = [...new Set([...alreadyExists, ...gsdContentConflicts])];
 
       if (
         isUntrackedRestoreFailure &&
-        gsdConflictFiles.length > 0 &&
-        nonGsdAlreadyExists.length === 0 &&
+        resolvable.length > 0 &&
         nonGsdUnmerged.length === 0
       ) {
-        for (const f of gsdConflictFiles) {
+        for (const f of resolvable) {
           execFileSync("git", ["checkout", "HEAD", "--", f], {
             cwd: basePath,
             stdio: ["ignore", "pipe", "pipe"],
