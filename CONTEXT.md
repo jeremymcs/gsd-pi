@@ -49,6 +49,10 @@
 - **Worktree Safety module**: module that validates project root, worktree registration, lease ownership, and git health before a source-writing Unit runs.
 - **Worktree Lifecycle module**: module that owns worktree create/enter/teardown/merge verbs, `s.basePath` mutation, and `process.chdir` discipline. Sole owner of these mutations across single-loop and parallel callers.
 - **Worktree State Projection module**: module that owns the direction-and-rules of state file flow between project root and auto-worktree. Encodes the bug-hardened invariants (additive milestone copy, ASSESSMENT verdict overwrite, completed-units forward-sync, WAL/SHM cleanup) that `syncProjectRootToWorktree` and `syncStateToProjectRoot` carry today.
+- **Worktree Placement module**: module (`worktree-placement.ts`) that owns WHERE a worktree physically lives — the forward direction (project root + name → path). Creation always targets the Canonical Worktree Container; resolution prefers an existing worktree's actual location. The reverse direction (path → project identity) is owned by `worktree-root.ts`'s `findWorktreeSegment`, the single marker-matching seam. See `docs/dev/ADR-031-worktree-placement.md`.
+- **Canonical Worktree Container**: `<projectRoot>/.gsd-worktrees/` — a real directory sibling of `.gsd` that never crosses the external-state symlink, so the working copy stays at the project root. Requires its own `.gitignore` entry (a blanket `.gsd` pattern does not cover it).
+- **Legacy Worktree Container**: `<projectRoot>/.gsd/worktrees/` — the pre-ADR-031 location, which crosses the `.gsd → ~/.gsd/projects/<hash>/` symlink and materialises worktrees in the home directory. Stays recognized for in-flight worktrees: scans, containment, and safety checks accept both containers; new worktrees are never created here.
+- **External State Layout**: the shipped `.gsd → ~/.gsd/projects/<hash>/` symlink arrangement managed by `repo-identity.ts` (ADR-002's closure note said it didn't exist; ADR-031 amends the record). Env contracts: `GSD_PROJECT_ROOT` (worker-process root override), `GSD_STATE_DIR` (overrides `~/.gsd` as the external-state parent).
 - **Recovery Classification module**: module that maps provider, tool, policy, git, worktree, runtime, and reconciliation-drift failures to a Recovery decision.
 - **Tool Contract module**: module that keeps Unit prompts, tool schemas, tool policy, source-observation invariants, and pre-dispatch validation aligned.
 - **Task Output Contract**: the concrete files a planned Task promises to create or overwrite. Distinct from task inputs, verification commands, and human-readable success outcomes.
@@ -149,6 +153,10 @@ Dispatch remains responsible for selecting the next Unit from reconciled state. 
   See `docs/dev/ADR-030-two-altitude-state-machine.md`.
 
 - Foreground `/gsd next` and `/gsd auto` runs follow **Closeout Boundary Stop**: after the first durable task, slice, or milestone closeout boundary, the foreground terminal preserves the closeout transcript as the final visible surface instead of replacing it with a terminal roll-up widget. Headless runs may still emit durable terminal completion notifications/widgets for automation.
+
+- Worktree placement deepens behind the **Worktree Placement module**: new worktrees are created at the Canonical Worktree Container (`<projectRoot>/.gsd-worktrees/<MID>`), the Legacy Worktree Container stays recognized for in-flight worktrees, and `findWorktreeSegment` (worktree-root.ts) is the only marker-matching implementation — new layouts are taught in exactly two places (placement forward, worktree-root reverse). ADR-002's "no external state directory exists" closure is amended: the External State Layout shipped.
+
+  See `docs/dev/ADR-031-worktree-placement.md`.
 
 ## Current implementation snapshot (phase 1)
 

@@ -157,7 +157,7 @@ describe("auto-worktree lifecycle", () => {
     try {
       const wtPath = createAutoWorktree(tempDir, "M001");
       const realWtPath = realpathSync(wtPath);
-      assert.ok(realWtPath.startsWith(storage), "git registered the symlink-resolved worktree path");
+      assert.equal(realWtPath, join(tempDir, ".gsd-worktrees", "M001"), "worktree uses canonical path under project root, not through the .gsd symlink");
 
       _resetAutoWorktreeOriginalBaseForTests();
       process.chdir(realWtPath);
