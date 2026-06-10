@@ -133,6 +133,16 @@ const CONTEXT_MODE_GUIDANCE_BY_LANE: Record<Exclude<ContextModePolicy, "none">, 
     "Use `gsd_resume` for prior context, `gsd_exec_search` for saved evidence, and `gsd_exec` for noisy doc validation commands.",
 };
 
+// Per-unit overrides win over the lane default. run-uat's tool contract
+// forbids `gsd_exec`/`gsd_exec_search` (acceptance evidence must flow through
+// `gsd_uat_exec`) and Claude Code dispatch strips the tools entirely, so the
+// shared verification-lane guidance would steer the agent into calling an
+// unavailable tool.
+const CONTEXT_MODE_GUIDANCE_BY_UNIT: Record<string, string> = {
+  "run-uat":
+    "Use `gsd_uat_exec` for acceptance checks so evidence is typed as UAT-owned, and `gsd_resume` after compaction or resume.",
+};
+
 /**
  * Render the Context Mode instruction lane for a unit type. Unknown unit
  * types, disabled config, and explicit `contextMode: "none"` all omit the
@@ -147,7 +157,8 @@ export function composeContextModeInstructions(
   if (!manifest || manifest.contextMode === "none") return "";
 
   const lane = CONTEXT_MODE_LANE_LABELS[manifest.contextMode];
-  const guidance = CONTEXT_MODE_GUIDANCE_BY_LANE[manifest.contextMode];
+  const guidance =
+    CONTEXT_MODE_GUIDANCE_BY_UNIT[unitType] ?? CONTEXT_MODE_GUIDANCE_BY_LANE[manifest.contextMode];
   if (opts.renderMode === "nested") {
     return `Context Mode (${lane} lane): ${guidance}`;
   }
