@@ -746,7 +746,7 @@ describe("auto-worktree-milestone-merge", { timeout: 300_000 }, () => {
   });
 
   test("#2156: mergeMilestoneToMain removes external-state worktrees using the milestone branch name", () => {
-    const { repo, externalState } = freshRepoWithExternalGsd();
+    const { repo } = freshRepoWithExternalGsd();
     const wtPath = createAutoWorktree(repo, "M215");
 
     addSliceToMilestone(repo, wtPath, "M215", "S01", "External cleanup", [
@@ -754,9 +754,10 @@ describe("auto-worktree-milestone-merge", { timeout: 300_000 }, () => {
     ]);
 
     const realWtPath = realpathSync(wtPath);
-    assert.ok(
-      realWtPath.startsWith(externalState),
-      `worktree should be registered under external .gsd state, got ${realWtPath}`,
+    assert.equal(
+      realWtPath,
+      join(repo, ".gsd-worktrees", "M215"),
+      `worktree should use canonical path under project root, got ${realWtPath}`,
     );
 
     // Recreate the exact divergence from #1852: local .gsd/ is replaced with a
