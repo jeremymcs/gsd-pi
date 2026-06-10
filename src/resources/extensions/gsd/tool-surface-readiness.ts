@@ -13,7 +13,7 @@ import { isWorkflowToolSurfaceName } from "./workflow-tool-surface.js";
 export const TOOL_SURFACE_NOT_READY = "workflow tool surface not ready";
 
 /** MCP server statuses that will not self-heal within the session. */
-const TERMINAL_MCP_SERVER_STATUSES = new Set(["failed", "needs_auth"]);
+const TERMINAL_MCP_SERVER_STATUSES = new Set(["failed", "needs-auth", "disabled"]);
 
 export interface LiveToolSurfaceObservation {
   /** Tool names the session reported at init (MCP tools appear as mcp__<server>__<tool>). */
