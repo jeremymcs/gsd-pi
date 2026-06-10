@@ -259,14 +259,19 @@ export function checkoutBranchWithStashGuard(
       const alreadyExists = stashAlreadyExistsFilesFromError(popErr);
       const isUntrackedRestoreFailure = stashPopMessage.includes("could not restore untracked files from stash");
       const stashRefForDrop = stashRefFromError(popErr);
-      const nonGsdUnmerged = nativeConflictFiles(basePath).filter((f) => !f.startsWith(".gsd/"));
+      const allConflictFiles = nativeConflictFiles(basePath);
+      const nonGsdUnmerged = allConflictFiles.filter((f) => !f.startsWith(".gsd/"));
+      const gsdUnmerged = allConflictFiles.filter((f) => f.startsWith(".gsd/"));
       const gsdContentConflicts = isUntrackedRestoreFailure
         ? gsdJsonlFilesWithConflictMarkers(basePath)
         : [];
       // Resolve ALL untracked-collision files by accepting HEAD — files in
       // alreadyExists were untracked on the source branch by definition of the
       // "already exists, no checkout" failure, so target HEAD is authoritative.
-      const resolvable = [...new Set([...alreadyExists, ...gsdContentConflicts])];
+      // gsdUnmerged: .gsd/ index conflicts left by the partial stash pop are
+      // also resolved via HEAD — .gsd/ runtime state is always authoritative
+      // on the target branch, so accepting HEAD is safe here too.
+      const resolvable = [...new Set([...alreadyExists, ...gsdContentConflicts, ...gsdUnmerged])];
 
       if (
         isUntrackedRestoreFailure &&
