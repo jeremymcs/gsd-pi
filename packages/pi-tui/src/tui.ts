@@ -1402,6 +1402,17 @@ export class TUI extends Container {
 		const previousContentViewportTop = getViewportTop(this.previousLines.length);
 		let clampedToViewport = false;
 		if (firstChanged < previousContentViewportTop) {
+			if (appendedLines) {
+				// A mid-buffer insertion (e.g. a markdown code-fence border materialising)
+				// shifted a line across the scrollback/viewport boundary.  Clamping would
+				// leave the displaced line frozen in scrollback AND re-emit it in the live
+				// region, producing a verbatim duplicate.  Fall back to a clean repaint.
+				logRedraw(
+					`firstChanged < viewportTop + buffer grew (${firstChanged} < ${previousContentViewportTop}) — full repaint to avoid duplicate`,
+				);
+				fullRender(true);
+				return;
+			}
 			const newViewportTop = getViewportTop(newLines.length);
 			const clampedFirst = Math.max(0, Math.min(previousContentViewportTop, newViewportTop));
 			logRedraw(
