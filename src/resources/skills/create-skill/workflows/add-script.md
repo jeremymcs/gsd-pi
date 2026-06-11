@@ -12,7 +12,7 @@ Ask (if not already provided):
 - Which skill needs a script?
 - What operation should the script perform?
 
-Determine `{skill-path}`: check `~/.agents/skills/{skill-name}` (user-global) and `.agents/skills/{skill-name}` (project-local); use whichever exists.
+Determine `{skill-path}`: use `.agents/skills/{skill-name}` (project-local) if found there, otherwise `~/.agents/skills/{skill-name}` (user-global). Project-local takes precedence because the skill catalog loads it first on name collision.
 
 ## Step 2: Analyze Script Need
 

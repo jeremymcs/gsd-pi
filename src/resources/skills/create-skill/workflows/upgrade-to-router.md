@@ -18,7 +18,7 @@ ls .agents/skills/ 2>/dev/null
 
 Present numbered list, ask: "Which skill should be upgraded to the router pattern?"
 
-Determine `{skill-path}`: use `~/.agents/skills/{skill-name}` if found there, otherwise `.agents/skills/{skill-name}`.
+Determine `{skill-path}`: use `.agents/skills/{skill-name}` (project-local) if found there, otherwise `~/.agents/skills/{skill-name}` (user-global). Project-local takes precedence because the skill catalog loads it first on name collision.
 
 ## Step 2: Verify It Needs Upgrading
 
