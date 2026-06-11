@@ -205,10 +205,21 @@ async function registerBrowserTools(pi: ExtensionAPI, ctx: ExtensionContext): Pr
     }
   }
 
+  // Browser tool registrations are process-global and cannot be swapped once
+  // live. When an earlier session in this process already registered an engine
+  // and this project resolved a different one (per-project probe resolution can
+  // diverge across projects in a multi-session process), adopt the registered
+  // engine rather than throwing — a throw surfaces as "browser-tools failed to
+  // load" and leaves this session with no browser tools at all. Commit the
+  // adoption so ambient readers (UAT guidance, warm-up) describe the engine
+  // actually in use.
   if (registeredEngine && registeredEngine !== engine) {
-    throw new Error(
-      `Browser tools already registered with GSD_BROWSER_ENGINE=${registeredEngine}. Restart GSD before switching to ${engine}.`,
-    );
+    engine = registeredEngine;
+    commitBrowserEngineResolution(projectRoot, {
+      engine,
+      source: "probe",
+      reason: `browser tools already registered with ${engine} earlier in this process; adopting it`,
+    });
   }
 
   let registration: Promise<void>;
