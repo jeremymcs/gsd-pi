@@ -2,7 +2,7 @@
 // File Purpose: Central UAT mode policy for dispatch, tool presentation, and result validation.
 
 import { hasBrowserContractPrefix } from "../shared/browser-contract.js";
-import { extractUatType } from "./files.js";
+import { extractUatType, UAT_TYPE_KEYWORDS } from "./files.js";
 import type { UatType } from "./files.js";
 import { hasBrowserRequiredText } from "./browser-evidence.js";
 import { parseMcpToolName } from "./mcp-tool-name.js";
@@ -28,19 +28,14 @@ export interface UatModePolicy {
 
 export interface UatContentPolicy {
   declaredType: UatType;
+  /** False when no parseable `UAT mode:` declaration exists and declaredType defaulted to artifact-driven. */
+  modeDeclared: boolean;
   effectiveType: UatType;
   browserRequired: boolean;
   shouldDispatchByDefault: boolean;
 }
 
-export const UAT_TYPES: readonly UatType[] = [
-  "artifact-driven",
-  "browser-executable",
-  "runtime-executable",
-  "live-runtime",
-  "mixed",
-  "human-experience",
-] as const;
+export const UAT_TYPES: readonly UatType[] = UAT_TYPE_KEYWORDS;
 
 export const UAT_MODE_POLICIES: Readonly<Record<UatType, UatModePolicy>> = {
   "artifact-driven": {
@@ -90,7 +85,8 @@ export function getDeclaredUatType(content: string): UatType {
 }
 
 export function classifyUatContent(content: string): UatContentPolicy {
-  const declaredType = getDeclaredUatType(content);
+  const parsedType = extractUatType(content);
+  const declaredType = parsedType ?? "artifact-driven";
   const browserRequired = hasBrowserRequiredText(content);
   const effectiveType = declaredType === "artifact-driven" && browserRequired
     ? "browser-executable"
@@ -98,15 +94,19 @@ export function classifyUatContent(content: string): UatContentPolicy {
 
   return {
     declaredType,
+    modeDeclared: parsedType !== undefined,
     effectiveType,
     browserRequired,
     shouldDispatchByDefault: effectiveType !== "artifact-driven" || browserRequired,
   };
 }
 
-export function shouldEscalateArtifactUatToBrowser(content: string): boolean {
-  const policy = classifyUatContent(content);
+export function escalatesArtifactUatToBrowser(policy: UatContentPolicy): boolean {
   return policy.declaredType === "artifact-driven" && policy.browserRequired;
+}
+
+export function shouldEscalateArtifactUatToBrowser(content: string): boolean {
+  return escalatesArtifactUatToBrowser(classifyUatContent(content));
 }
 
 export function resolveEffectiveUatType(content: string): UatType {

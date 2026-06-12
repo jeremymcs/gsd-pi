@@ -258,6 +258,48 @@ describe('complete-slice verification gate (#3580)', () => {
     }
   });
 
+  test('allows a browser UAT declared as a bare keyword under ## UAT Type (M006/S01 format drift)', async () => {
+    // Regression: the agent wrote `## UAT Type\nbrowser-executable` (no
+    // `- UAT mode:` bullet). The old parser defaulted that to artifact-driven
+    // and the gate rejected the slice in a loop.
+    const body = [
+      '## UAT Type',
+      'browser-executable',
+      '',
+      '## Smoke Test',
+      '1. Open the page in a browser and perform add/edit/complete/delete once.',
+    ].join('\n');
+    const result = await handleCompleteSlice(
+      makeParams({ uatContent: body }),
+      basePath,
+    );
+    if ('error' in result) {
+      assert.doesNotMatch(
+        result.error,
+        /requires browser verification/i,
+        `bare browser-executable declaration must pass the browser gate, got: ${result.error}`,
+      );
+    }
+  });
+
+  test('explains the missing declaration when a browser UAT has no parseable UAT mode', async () => {
+    // When nothing was declared, the error must not claim the agent
+    // "declared artifact-driven" — it must show the expected bullet format.
+    const body = [
+      '## Smoke Test',
+      '1. Open the page in a browser and perform add/edit/complete/delete once.',
+    ].join('\n');
+    const result = await handleCompleteSlice(
+      makeParams({ uatContent: body }),
+      basePath,
+    );
+    assert.ok('error' in result, 'expected handler to reject an undeclared browser UAT');
+    const error = (result as { error: string }).error;
+    assert.match(error, /no parseable UAT mode declaration/i);
+    assert.match(error, /- UAT mode: browser-executable/);
+    assert.doesNotMatch(error, /but declares "UAT mode: artifact-driven"/);
+  });
+
   test('allows a browser UAT when it is declared mixed (mixed receives browser tools)', async () => {
     const body = BROWSER_UAT_BODY.replace('artifact-driven', 'mixed (artifact-driven + browser)');
     const result = await handleCompleteSlice(

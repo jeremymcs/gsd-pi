@@ -26,7 +26,7 @@ import { gsdProjectionRoot, clearPathCache, resolveMilestoneFile } from "../path
 import { resolveCanonicalMilestoneRoot } from "../worktree-manager.js";
 import { checkOwnership, sliceUnitKey } from "../unit-ownership.js";
 import { saveFile, clearParseCache } from "../files.js";
-import { getDeclaredUatType, shouldEscalateArtifactUatToBrowser } from "../uat-policy.js";
+import { classifyUatContent, escalatesArtifactUatToBrowser } from "../uat-policy.js";
 import { invalidateStateCache } from "../state.js";
 import { renderRoadmapFromDb } from "../markdown-renderer.js";
 import { parseRoadmap } from "../parsers-legacy.js";
@@ -355,10 +355,18 @@ export async function handleCompleteSlice(
   // `npx playwright test` via gsd_uat_exec, and live-runtime/mixed/
   // browser-executable receive browser tools (UAT_MODE_POLICIES).
   const uatContent = params.uatContent || "";
-  const declaredUatMode = getDeclaredUatType(uatContent);
-  if (shouldEscalateArtifactUatToBrowser(uatContent)) {
+  const uatPolicy = classifyUatContent(uatContent);
+  if (escalatesArtifactUatToBrowser(uatPolicy)) {
+    // Distinguish an explicit artifact-driven declaration from a missing or
+    // unparseable one that merely *defaulted* to artifact-driven — telling an
+    // agent it "declared artifact-driven" when its declaration simply failed
+    // to parse sends it into a rewrite loop with the same unparseable format.
+    const staticOnlyClause = `which only runs static/file checks and would defer the browser work to a human`;
+    const modeClause = uatPolicy.modeDeclared
+      ? `declares "UAT mode: artifact-driven", ${staticOnlyClause}`
+      : `has no parseable UAT mode declaration in its "## UAT Type" section (the declaration must be a bullet exactly like "- UAT mode: browser-executable"), so it defaults to "artifact-driven", ${staticOnlyClause}`;
     return {
-      error: `UAT requires browser verification (opening a page in a browser, navigating to a page or localhost, screenshots) but declares "UAT mode: artifact-driven", which only runs static/file checks and would defer the browser work to a human. Use a mode that actually verifies the UI: "browser-executable" (interactive browser tools), "runtime-executable" (a browser test command such as playwright), or a browser-inclusive "mixed"/"live-runtime". Re-author the UAT Type section and complete the slice again.`,
+      error: `UAT requires browser verification (opening a page in a browser, navigating to a page or localhost, screenshots) but ${modeClause}. Use a mode that actually verifies the UI: "browser-executable" (interactive browser tools), "runtime-executable" (a browser test command such as playwright), or a browser-inclusive "mixed"/"live-runtime". Re-author the UAT Type section and complete the slice again.`,
     };
   }
 
