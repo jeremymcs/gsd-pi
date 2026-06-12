@@ -13,7 +13,7 @@ import type { GSDEcosystemBeforeAgentStartHandler } from "../ecosystem/gsd-exten
 import { updateSnapshot } from "../ecosystem/gsd-extension-api.js";
 
 import { buildMilestoneFileName, clearPathCache, milestonesDir, resolveMilestonePath, resolveSliceFile, resolveSlicePath } from "../paths.js";
-import { applyAskUserQuestionsGateResult, canonicalToolName, clearDiscussionFlowState, formatPendingAskUserQuestionsGateMessage, isApprovalGateVerifiedInSnapshot, isDepthConfirmationAnswer, isMilestoneDepthVerified, isMilestoneDepthVerifiedInSnapshot, isQueuePhaseActive, loadWriteGateSnapshot, markApprovalGateVerified, markDepthVerified, refreshWriteGateStateFromDisk, resetWriteGateState, shouldBlockContextWrite, shouldBlockPlanningUnit, shouldBlockQueueExecution, shouldBlockWorktreeWrite, isGateQuestionId, setPendingGate, clearPendingGate, getPendingGate, shouldBlockPendingGate, shouldBlockPendingGateBash, extractDepthVerificationMilestoneId } from "./write-gate.js";
+import { applyAskUserQuestionsGateResult, canonicalToolName, clearDiscussionFlowState, formatPendingAskUserQuestionsGateMessage, hostWriteGateAdapter, isApprovalGateVerifiedInSnapshot, isDepthConfirmationAnswer, isMilestoneDepthVerified, isMilestoneDepthVerifiedInSnapshot, isQueuePhaseActive, markApprovalGateVerified, markDepthVerified, resetWriteGateState, shouldBlockContextWrite, shouldBlockPlanningUnit, shouldBlockQueueExecution, shouldBlockWorktreeWrite, isGateQuestionId, clearPendingGate, getPendingGate, shouldBlockPendingGate, shouldBlockPendingGateBash, extractDepthVerificationMilestoneId } from "./write-gate.js";
 import { resolveManifest } from "../unit-context-manifest.js";
 import { isBlockedStateFile, isBashWriteToStateFile, BLOCKED_WRITE_ERROR } from "../write-intercept.js";
 import { loadFile, saveFile, formatContinue } from "../files.js";
@@ -78,11 +78,6 @@ import { resolveWorkflowToolBasePath } from "./dynamic-tools.js";
 import { getRequiredWorkflowToolsForUnit } from "../unit-tool-contracts.js";
 
 let approvalQuestionAbortInFlight = false;
-
-interface DeferredApprovalGate {
-  gateId: string;
-  basePath: string;
-}
 
 type WelcomeScreenModule = {
   buildWelcomeScreenLines(opts: { version: string; remoteChannel?: string; width?: number }): string[];
@@ -154,7 +149,13 @@ async function installWelcomeHeader(ctx: ExtensionContext): Promise<void> {
   }
 }
 
-let deferredApprovalGate: DeferredApprovalGate | null = null;
+/**
+ * Approval gates whose durable arming is deferred until tool execution /
+ * agent end, keyed by basePath. A Map (not a single slot) so concurrent
+ * projects in one process cannot lose each other's deferred gate; entries
+ * are bounded — cleared on activation, session boundaries, and verification.
+ */
+const deferredApprovalGates = new Map<string, string>();
 
 export const MINIMAL_GSD_TOOL_NAMES = [
   "gsd_exec",
@@ -562,13 +563,22 @@ async function applyCompactionThresholdOverride(ctx: ExtensionContext): Promise<
 }
 
 function clearDeferredApprovalGate(basePath?: string): void {
-  if (!basePath || deferredApprovalGate?.basePath === basePath) {
-    deferredApprovalGate = null;
+  if (!basePath) {
+    deferredApprovalGates.clear();
+  } else {
+    deferredApprovalGates.delete(basePath);
   }
 }
 
 function deferApprovalGate(gateId: string, basePath: string): void {
-  deferredApprovalGate = { gateId, basePath };
+  // Verified-on-disk wins (same adapter policy as activation/re-arm): if the
+  // workflow MCP child already verified this gate, deferring would block
+  // tools for a gate that can never legitimately arm.
+  const snapshot = hostWriteGateAdapter.readState(basePath);
+  if (isApprovalGateVerifiedInSnapshot(snapshot, gateId)) return;
+  const milestoneId = extractDepthVerificationMilestoneId(gateId);
+  if (milestoneId && isMilestoneDepthVerifiedInSnapshot(snapshot, milestoneId)) return;
+  deferredApprovalGates.set(basePath, gateId);
 }
 
 function contextBasePath(ctx?: { cwd?: string }): string {
@@ -625,14 +635,13 @@ function isShellExecutionTool(canonicalName: string): boolean {
 }
 
 function activateDeferredApprovalGate(basePath: string): void {
-  if (deferredApprovalGate?.basePath !== basePath) return;
-  const gateId = deferredApprovalGate.gateId;
-  deferredApprovalGate = null;
-  const snapshot = refreshWriteGateStateFromDisk(basePath);
-  const milestoneId = extractDepthVerificationMilestoneId(gateId);
-  if (isApprovalGateVerifiedInSnapshot(snapshot, gateId)) return;
-  if (milestoneId && isMilestoneDepthVerifiedInSnapshot(snapshot, milestoneId)) return;
-  setPendingGate(gateId, basePath);
+  const gateId = deferredApprovalGates.get(basePath);
+  if (gateId === undefined) return;
+  deferredApprovalGates.delete(basePath);
+  // hostWriteGateAdapter.setPending applies the verified-on-disk-wins merge
+  // policy: it refuses to arm (and thereby clobber) a gate the workflow MCP
+  // child already verified on disk.
+  hostWriteGateAdapter.setPending(gateId, basePath);
 }
 
 function extractGateQuestionId(input: unknown): string | undefined {
@@ -643,7 +652,7 @@ function extractGateQuestionId(input: unknown): string | undefined {
 
 function isApprovalGateBlocking(basePath: string): boolean {
   return Boolean(getPendingGate(basePath))
-    || (deferredApprovalGate?.basePath === basePath);
+    || deferredApprovalGates.has(basePath);
 }
 
 function isContextDraftSummarySave(toolName: string, input: unknown): boolean {
@@ -788,13 +797,14 @@ function shouldBlockDeferredApprovalTool(
   input: unknown,
   basePath: string,
 ): { block: boolean; reason?: string; displayReason?: string } {
-  if (deferredApprovalGate?.basePath !== basePath) return { block: false };
+  const deferredGateId = deferredApprovalGates.get(basePath);
+  if (deferredGateId === undefined) return { block: false };
   if (toolName === "ask_user_questions") return { block: false };
   if (isContextDraftSummarySave(toolName, input)) return { block: false };
   return withDepthGateDisplayReason({
     block: true,
     reason: [
-      `HARD BLOCK: Approval question "${deferredApprovalGate.gateId}" has been shown to the user.`,
+      `HARD BLOCK: Approval question "${deferredGateId}" has been shown to the user.`,
       `Only CONTEXT-DRAFT persistence may finish in this same assistant turn.`,
       `Wait for the user's answer before calling additional tools.`,
     ].join(" "),
@@ -1587,22 +1597,15 @@ export function registerHooks(
       if (typeof questionId === "string") {
         // External engines (claude-code-cli) ingest the SDK turn's tool blocks
         // post-hoc, so this event can fire AFTER the workflow MCP child already
-        // verified this gate and allowed the CONTEXT save. setPendingGate also
-        // revokes verifiedDepthMilestones/verifiedApprovalGates, so an
-        // unconditional re-arm here wipes the child's verification and leaves
-        // the discuss→auto handoff permanently blocked. Skip the re-arm when
-        // the snapshot already records this exact gate as verified — mirrors
-        // activateDeferredApprovalGate's guard. Stale verified state cannot
-        // leak into a later re-discussion: a successful handoff deletes the
-        // snapshot via clearDiscussionFlowState.
-        const snapshot = refreshWriteGateStateFromDisk(basePath);
-        const gateMilestoneId = extractDepthVerificationMilestoneId(questionId);
-        const alreadyVerified =
-          isApprovalGateVerifiedInSnapshot(snapshot, questionId) ||
-          isMilestoneDepthVerifiedInSnapshot(snapshot, gateMilestoneId);
-        if (!alreadyVerified) {
-          setPendingGate(questionId, basePath);
-        }
+        // verified this gate and allowed the CONTEXT save. Arming also revokes
+        // verifiedDepthMilestones/verifiedApprovalGates, so an unconditional
+        // re-arm here would wipe the child's verification and leave the
+        // discuss→auto handoff permanently blocked. hostWriteGateAdapter
+        // .setPending applies the verified-on-disk-wins policy and skips the
+        // re-arm in that case. Stale verified state cannot leak into a later
+        // re-discussion: a successful handoff deletes the snapshot via
+        // clearDiscussionFlowState.
+        hostWriteGateAdapter.setPending(questionId, basePath);
         clearDeferredApprovalGate(basePath);
       }
     }

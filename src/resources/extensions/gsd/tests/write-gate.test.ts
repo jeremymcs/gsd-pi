@@ -789,6 +789,8 @@ test('write-gate: resetWriteGateState persists through dangling .gsd symlink', (
       verifiedApprovalGates: [],
       activeQueuePhase: false,
       pendingGateId: null,
+      epoch: 1,
+      writer: 'host',
     });
   } finally {
     if (originalEnv === undefined) {
@@ -832,6 +834,8 @@ test('write-gate: getPendingGate hydrates from disk when workflow MCP verified g
       verifiedApprovalGates: [gateId],
       activeQueuePhase: false,
       pendingGateId: null,
+      // Legacy snapshot written without epoch/writer reads as epoch 0.
+      epoch: 0,
     });
   } finally {
     if (originalEnv === undefined) {

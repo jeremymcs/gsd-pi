@@ -75,6 +75,8 @@ interface InMemoryWriteGateState {
   verifiedApprovalGates: Set<string>;
   activeQueuePhase: boolean;
   pendingGateId: string | null;
+  /** Last snapshot epoch this process observed or wrote (0 = never persisted / pre-epoch file). */
+  epoch: number;
 }
 
 function createEmptyWriteGateState(): InMemoryWriteGateState {
@@ -83,6 +85,7 @@ function createEmptyWriteGateState(): InMemoryWriteGateState {
     verifiedApprovalGates: new Set<string>(),
     activeQueuePhase: false,
     pendingGateId: null,
+    epoch: 0,
   };
 }
 
@@ -128,11 +131,27 @@ export function canonicalToolName(toolName: string): string {
   return stripMcpToolPrefix(toolName);
 }
 
+/**
+ * Which process wrote a snapshot. Two processes share the snapshot file:
+ * the extension host ("host") and the workflow MCP child ("child"), which
+ * dynamically imports this same compiled module in its own process.
+ */
+export type WriteGateWriter = "host" | "child";
+
 export interface WriteGateSnapshot {
   verifiedDepthMilestones: string[];
   verifiedApprovalGates?: string[];
   activeQueuePhase: boolean;
   pendingGateId: string | null;
+  /**
+   * Monotonic write counter, bumped on every persist. Missing (old files)
+   * reads as 0. Used for stale-write detection: a writer re-reads the disk
+   * snapshot immediately before persisting and re-merges if the disk epoch
+   * advanced past what it last observed.
+   */
+  epoch?: number;
+  /** Tag of the process that produced this snapshot (diagnostic only). */
+  writer?: WriteGateWriter;
 }
 
 /**
@@ -173,15 +192,15 @@ function currentWriteGateSnapshot(basePath: string = process.cwd()): WriteGateSn
     verifiedApprovalGates: [...state.verifiedApprovalGates].sort(),
     activeQueuePhase: state.activeQueuePhase,
     pendingGateId: state.pendingGateId,
+    epoch: state.epoch,
   };
 }
 
-function persistWriteGateSnapshot(basePath: string): void {
-  if (!shouldPersistWriteGateSnapshot()) return;
+function writeSnapshotFileAtomic(basePath: string, snapshot: WriteGateSnapshot): void {
   const path = writeGateSnapshotPath(basePath);
   ensureWriteGateSnapshotDirectory(basePath);
   const tempPath = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
-  writeFileSync(tempPath, JSON.stringify(currentWriteGateSnapshot(basePath), null, 2), "utf-8");
+  writeFileSync(tempPath, JSON.stringify(snapshot, null, 2), "utf-8");
   try {
     renameSync(tempPath, path);
   } catch (err: unknown) {
@@ -194,6 +213,20 @@ function persistWriteGateSnapshot(basePath: string): void {
       throw err;
     }
   }
+}
+
+/**
+ * Persist the current in-memory state for `basePath`, stamped with a bumped
+ * epoch and the writer tag. Callers (mutateWriteGateState / childMutate) are
+ * responsible for first reconciling state.epoch (and content, when merging)
+ * against the disk snapshot — the read-then-write sequence is synchronous,
+ * so that read doubles as the stale-write re-read before persist.
+ */
+function persistWriteGateSnapshot(basePath: string, writer: WriteGateWriter): void {
+  if (!shouldPersistWriteGateSnapshot()) return;
+  const state = getWriteGateState(basePath);
+  state.epoch += 1;
+  writeSnapshotFileAtomic(basePath, { ...currentWriteGateSnapshot(basePath), writer });
 }
 
 function clearPersistedWriteGateSnapshot(basePath: string): void {
@@ -214,11 +247,17 @@ function normalizeWriteGateSnapshot(value: unknown): WriteGateSnapshot {
   const verifiedGates = Array.isArray(record.verifiedApprovalGates)
     ? record.verifiedApprovalGates.filter((item): item is string => typeof item === "string")
     : [];
+  const epochRaw = record.epoch;
+  const epoch = typeof epochRaw === "number" && Number.isFinite(epochRaw) && epochRaw >= 0
+    ? Math.floor(epochRaw)
+    : 0;
   return {
     verifiedDepthMilestones: [...new Set(verified)].sort(),
     verifiedApprovalGates: [...new Set(verifiedGates)].sort(),
     activeQueuePhase: record.activeQueuePhase === true,
     pendingGateId: typeof record.pendingGateId === "string" ? record.pendingGateId : null,
+    epoch,
+    ...(record.writer === "host" || record.writer === "child" ? { writer: record.writer } : {}),
   };
 }
 
@@ -227,7 +266,22 @@ const EMPTY_SNAPSHOT: WriteGateSnapshot = {
   verifiedApprovalGates: [],
   activeQueuePhase: false,
   pendingGateId: null,
+  epoch: 0,
 };
+
+/**
+ * Read the snapshot file as it exists on disk. Returns null when the file
+ * is missing or unparseable (no in-memory fallback — callers decide).
+ */
+function readDiskSnapshot(basePath: string): WriteGateSnapshot | null {
+  const path = writeGateSnapshotPath(basePath);
+  if (!existsSync(path)) return null;
+  try {
+    return normalizeWriteGateSnapshot(JSON.parse(readFileSync(path, "utf-8")));
+  } catch {
+    return null;
+  }
+}
 
 export function loadWriteGateSnapshot(basePath: string): WriteGateSnapshot {
   const path = writeGateSnapshotPath(basePath);
@@ -238,32 +292,108 @@ export function loadWriteGateSnapshot(basePath: string): WriteGateSnapshot {
     if (shouldPersistWriteGateSnapshot()) return EMPTY_SNAPSHOT;
     return currentWriteGateSnapshot(basePath);
   }
-  try {
-    return normalizeWriteGateSnapshot(JSON.parse(readFileSync(path, "utf-8")));
-  } catch {
-    return currentWriteGateSnapshot(basePath);
-  }
+  const disk = readDiskSnapshot(basePath);
+  return disk ?? currentWriteGateSnapshot(basePath);
 }
 
 /**
- * Merge the persisted write-gate snapshot into the in-process Map entry.
+ * Reconcile a disk snapshot into the in-memory state. This is THE merge
+ * rule for the two-process seam:
+ *
+ *   - verifications are a grow-only union: a milestone/gate verified by
+ *     either process is never lost to a stale write from the other;
+ *   - activeQueuePhase and pendingGateId take the disk value (last writer
+ *     wins — matches the long-standing refresh semantics, and keeps
+ *     "delete the snapshot file to clear the HARD BLOCK" working);
+ *   - verified wins over pending: if the merged verified sets already cover
+ *     the pending gate (gate id verified, or its depth milestone verified),
+ *     the pending re-arm is dropped. This generalizes the ad-hoc re-arm
+ *     guard that previously protected only the tool_execution_start window.
+ */
+function mergeSnapshotIntoState(state: InMemoryWriteGateState, disk: WriteGateSnapshot): void {
+  for (const milestone of disk.verifiedDepthMilestones) state.verifiedDepthMilestones.add(milestone);
+  for (const gate of disk.verifiedApprovalGates ?? []) state.verifiedApprovalGates.add(gate);
+  state.activeQueuePhase = disk.activeQueuePhase;
+  state.pendingGateId = disk.pendingGateId;
+  dropVerifiedPendingGate(state);
+  state.epoch = Math.max(state.epoch, disk.epoch ?? 0);
+}
+
+/** Verified-on-disk wins over a pending re-arm (see mergeSnapshotIntoState). */
+function dropVerifiedPendingGate(state: InMemoryWriteGateState): void {
+  const pending = state.pendingGateId;
+  if (!pending) return;
+  const milestoneId = extractDepthVerificationMilestoneId(pending);
+  if (
+    state.verifiedApprovalGates.has(pending) ||
+    (milestoneId !== null && state.verifiedDepthMilestones.has(milestoneId))
+  ) {
+    state.pendingGateId = null;
+  }
+}
+
+function replaceStateFromSnapshot(state: InMemoryWriteGateState, snapshot: WriteGateSnapshot): void {
+  state.pendingGateId = snapshot.pendingGateId;
+  state.activeQueuePhase = snapshot.activeQueuePhase;
+  state.verifiedDepthMilestones = new Set(snapshot.verifiedDepthMilestones);
+  state.verifiedApprovalGates = new Set(snapshot.verifiedApprovalGates ?? []);
+  state.epoch = Math.max(state.epoch, snapshot.epoch ?? 0);
+}
+
+/**
+ * Reconcile the persisted write-gate snapshot into the in-process Map entry.
  * The workflow MCP server runs in a child process and records depth
  * verification there; without this refresh the extension host keeps stale
  * pending-gate memory and `activateDeferredApprovalGate` can re-arm a gate
  * that the subprocess already cleared on disk.
  *
- * Returns the snapshot used for the refresh so callers that need to inspect
- * it (e.g. re-arm guards) avoid a second disk read.
+ * Uses the union merge rule (mergeSnapshotIntoState) when a snapshot file
+ * exists; a missing file is a full reset (replace with empty) so deleting
+ * the file still clears all gate state.
+ *
+ * Returns the reconciled snapshot so callers that need to inspect it
+ * (e.g. re-arm guards) avoid a second disk read.
  */
 export function refreshWriteGateStateFromDisk(basePath: string): WriteGateSnapshot {
-  const snapshot = loadWriteGateSnapshot(basePath);
-  if (!shouldPersistWriteGateSnapshot()) return snapshot;
+  if (!shouldPersistWriteGateSnapshot()) return currentWriteGateSnapshot(basePath);
   const state = getWriteGateState(basePath);
-  state.pendingGateId = snapshot.pendingGateId;
-  state.activeQueuePhase = snapshot.activeQueuePhase;
-  state.verifiedDepthMilestones = new Set(snapshot.verifiedDepthMilestones);
-  state.verifiedApprovalGates = new Set(snapshot.verifiedApprovalGates ?? []);
-  return snapshot;
+  const disk = readDiskSnapshot(basePath);
+  if (disk) {
+    mergeSnapshotIntoState(state, disk);
+  } else if (!existsSync(writeGateSnapshotPath(basePath))) {
+    replaceStateFromSnapshot(state, EMPTY_SNAPSHOT);
+  }
+  return currentWriteGateSnapshot(basePath);
+}
+
+/**
+ * Read-modify-write primitive for gate mutations. Reconciles the disk
+ * snapshot into memory (union merge), applies the mutation on top, then
+ * persists with a bumped epoch. The whole sequence is synchronous, so the
+ * reconcile read doubles as the stale-write re-read before persist.
+ *
+ * `reconcile: false` skips the disk merge — used for intentional full
+ * resets where re-unioning disk verifications would defeat the reset.
+ */
+function mutateWriteGateState(
+  basePath: string,
+  mutate: (state: InMemoryWriteGateState) => void,
+  opts?: { writer?: WriteGateWriter; reconcile?: boolean },
+): void {
+  const state = getWriteGateState(basePath);
+  if (shouldPersistWriteGateSnapshot()) {
+    const disk = readDiskSnapshot(basePath);
+    if (disk) {
+      if (opts?.reconcile ?? true) {
+        mergeSnapshotIntoState(state, disk);
+      } else {
+        // Intentional reset: drop disk content but still advance past its epoch.
+        state.epoch = Math.max(state.epoch, disk.epoch ?? 0);
+      }
+    }
+  }
+  mutate(state);
+  persistWriteGateSnapshot(basePath, opts?.writer ?? defaultWriteGateWriter());
 }
 
 export function isDepthVerified(basePath: string = process.cwd()): boolean {
@@ -295,16 +425,17 @@ export function isQueuePhaseActive(basePath: string = process.cwd()): boolean {
 }
 
 export function setQueuePhaseActive(active: boolean, basePath: string): void {
-  getWriteGateState(basePath).activeQueuePhase = active;
-  persistWriteGateSnapshot(basePath);
+  mutateWriteGateState(basePath, (state) => {
+    state.activeQueuePhase = active;
+  });
 }
 
 export function resetWriteGateState(basePath: string): void {
-  const state = getWriteGateState(basePath);
-  state.verifiedDepthMilestones.clear();
-  state.verifiedApprovalGates.clear();
-  state.pendingGateId = null;
-  persistWriteGateSnapshot(basePath);
+  mutateWriteGateState(basePath, (state) => {
+    state.verifiedDepthMilestones.clear();
+    state.verifiedApprovalGates.clear();
+    state.pendingGateId = null;
+  }, { reconcile: false });
 }
 
 export function clearDiscussionFlowState(basePath: string): void {
@@ -313,15 +444,11 @@ export function clearDiscussionFlowState(basePath: string): void {
 }
 
 export function markDepthVerified(milestoneId?: string | null, basePath: string = process.cwd()): void {
-  if (!milestoneId) return;
-  getWriteGateState(basePath).verifiedDepthMilestones.add(milestoneId);
-  persistWriteGateSnapshot(basePath);
+  defaultWriteGateAdapter().markDepthVerified(milestoneId, basePath);
 }
 
 export function markApprovalGateVerified(gateId?: string | null, basePath: string = process.cwd()): void {
-  if (!gateId) return;
-  getWriteGateState(basePath).verifiedApprovalGates.add(gateId);
-  persistWriteGateSnapshot(basePath);
+  defaultWriteGateAdapter().markApprovalGateVerified(gateId, basePath);
 }
 
 export function isApprovalGateVerifiedInSnapshot(
@@ -358,30 +485,172 @@ function extractContextMilestoneId(inputPath: string): string | null {
 
 /**
  * Mark a gate as pending (called when ask_user_questions is invoked with a gate ID).
+ * Unconditional: arming a fresh gate intentionally revokes prior verification
+ * for that gate. Host-side re-arm guards (verified-on-disk wins) live in
+ * hostWriteGateAdapter.setPending — use that from host hook paths.
  */
 export function setPendingGate(gateId: string, basePath: string): void {
-  const state = getWriteGateState(basePath);
-  state.pendingGateId = gateId;
-  state.verifiedApprovalGates.delete(gateId);
-  const milestoneId = extractDepthVerificationMilestoneId(gateId);
-  if (milestoneId) state.verifiedDepthMilestones.delete(milestoneId);
-  persistWriteGateSnapshot(basePath);
+  const adapter = defaultWriteGateAdapter();
+  if (adapter.writer === "child") {
+    adapter.setPending(gateId, basePath);
+    return;
+  }
+  applyPendingGateMutation(gateId, basePath, "host");
+}
+
+function applyPendingGateMutation(gateId: string, basePath: string, writer: WriteGateWriter): void {
+  mutateWriteGateState(basePath, (state) => {
+    state.pendingGateId = gateId;
+    state.verifiedApprovalGates.delete(gateId);
+    const milestoneId = extractDepthVerificationMilestoneId(gateId);
+    if (milestoneId) state.verifiedDepthMilestones.delete(milestoneId);
+  }, { writer });
 }
 
 /**
  * Clear the pending gate (called when the user confirms).
  */
 export function clearPendingGate(basePath: string): void {
-  getWriteGateState(basePath).pendingGateId = null;
-  persistWriteGateSnapshot(basePath);
+  defaultWriteGateAdapter().clearPending(basePath);
 }
 
 /**
  * Get the currently pending gate, if any.
  */
 export function getPendingGate(basePath: string = process.cwd()): string | null {
-  refreshWriteGateStateFromDisk(basePath);
-  return getWriteGateState(basePath).pendingGateId;
+  return defaultWriteGateAdapter().readState(basePath).pendingGateId;
+}
+
+// ─── Write-gate two-process seam ─────────────────────────────────────────────
+//
+// Two processes write .gsd/runtime/write-gate-state.json: the extension host
+// and the workflow MCP child (which dynamically imports this same compiled
+// module — see GSD_WORKFLOW_WRITE_GATE_MODULE in workflow-mcp.ts and
+// packages/mcp-server/src/server.ts). The adapters below name that seam:
+// every cross-process interleaving reduces to "host adapter op vs child
+// adapter op", which is deterministic given the merge rule documented on
+// mergeSnapshotIntoState plus the epoch-stamped persist.
+
+export interface WriteGateStateAdapter {
+  readonly writer: WriteGateWriter;
+  /** Fresh (child) or disk-reconciled (host) view of gate state. */
+  readState(basePath: string): WriteGateSnapshot;
+  markDepthVerified(milestoneId: string | null | undefined, basePath: string): void;
+  markApprovalGateVerified(gateId: string | null | undefined, basePath: string): void;
+  /**
+   * Arm a pending gate. Returns false when the adapter's policy suppressed
+   * the arm (host: gate already verified on disk — verified wins over a
+   * stale re-arm). Child adapter always arms (a fresh question intentionally
+   * revokes prior verification).
+   */
+  setPending(gateId: string, basePath: string): boolean;
+  clearPending(basePath: string): void;
+}
+
+/**
+ * HOST adapter: in-memory state + reconcile-on-read. Disk verifications are
+ * never lost (union merge), and a gate verified on disk wins over an
+ * in-memory pending re-arm — setPending refuses to clobber a verification
+ * the child already recorded. This generalizes the ad-hoc re-arm guard that
+ * previously protected only the tool_execution_start window in
+ * register-hooks.ts.
+ */
+export const hostWriteGateAdapter: WriteGateStateAdapter = {
+  writer: "host",
+  readState(basePath: string): WriteGateSnapshot {
+    return refreshWriteGateStateFromDisk(basePath);
+  },
+  markDepthVerified(milestoneId, basePath): void {
+    if (!milestoneId) return;
+    mutateWriteGateState(basePath, (state) => {
+      state.verifiedDepthMilestones.add(milestoneId);
+    }, { writer: "host" });
+  },
+  markApprovalGateVerified(gateId, basePath): void {
+    if (!gateId) return;
+    mutateWriteGateState(basePath, (state) => {
+      state.verifiedApprovalGates.add(gateId);
+    }, { writer: "host" });
+  },
+  setPending(gateId: string, basePath: string): boolean {
+    const snapshot = refreshWriteGateStateFromDisk(basePath);
+    if (isApprovalGateVerifiedInSnapshot(snapshot, gateId)) return false;
+    const milestoneId = extractDepthVerificationMilestoneId(gateId);
+    if (milestoneId && isMilestoneDepthVerifiedInSnapshot(snapshot, milestoneId)) return false;
+    applyPendingGateMutation(gateId, basePath, "host");
+    return true;
+  },
+  clearPending(basePath: string): void {
+    mutateWriteGateState(basePath, (state) => {
+      state.pendingGateId = null;
+    }, { writer: "host" });
+  },
+};
+
+/**
+ * CHILD adapter: write-through with always-fresh reads — load the disk
+ * snapshot, mutate, persist. No cross-turn in-memory state is trusted: the
+ * in-process Map entry is replaced from disk before every mutation so a
+ * long-lived MCP child never resurrects state the host has since changed.
+ */
+export const childWriteGateAdapter: WriteGateStateAdapter = {
+  writer: "child",
+  readState(basePath: string): WriteGateSnapshot {
+    return loadWriteGateSnapshot(basePath);
+  },
+  markDepthVerified(milestoneId, basePath): void {
+    if (!milestoneId) return;
+    childMutate(basePath, (state) => {
+      state.verifiedDepthMilestones.add(milestoneId);
+    });
+  },
+  markApprovalGateVerified(gateId, basePath): void {
+    if (!gateId) return;
+    childMutate(basePath, (state) => {
+      state.verifiedApprovalGates.add(gateId);
+    });
+  },
+  setPending(gateId: string, basePath: string): boolean {
+    childMutate(basePath, (state) => {
+      state.pendingGateId = gateId;
+      state.verifiedApprovalGates.delete(gateId);
+      const milestoneId = extractDepthVerificationMilestoneId(gateId);
+      if (milestoneId) state.verifiedDepthMilestones.delete(milestoneId);
+    });
+    return true;
+  },
+  clearPending(basePath: string): void {
+    childMutate(basePath, (state) => {
+      state.pendingGateId = null;
+    });
+  },
+};
+
+function childMutate(basePath: string, mutate: (state: InMemoryWriteGateState) => void): void {
+  const state = getWriteGateState(basePath);
+  if (shouldPersistWriteGateSnapshot()) {
+    // Always-fresh: disk is the only truth for the child; discard any
+    // cross-turn in-memory residue before mutating.
+    replaceStateFromSnapshot(state, readDiskSnapshot(basePath) ?? EMPTY_SNAPSHOT);
+  }
+  mutate(state);
+  persistWriteGateSnapshot(basePath, "child");
+}
+
+/**
+ * Which adapter the module-level convenience exports (markDepthVerified,
+ * setPendingGate, …) delegate to. The workflow MCP child is spawned with
+ * GSD_WORKFLOW_WRITE_GATE_MODULE / GSD_WORKFLOW_PROJECT_ROOT in its
+ * environment (workflow-mcp.ts), so when this module is dynamically imported
+ * inside that process the child adapter is selected automatically; the
+ * extension host process has neither variable and stays on the host adapter.
+ */
+export function defaultWriteGateWriter(env: NodeJS.ProcessEnv = process.env): WriteGateWriter {
+  return env.GSD_WORKFLOW_WRITE_GATE_MODULE || env.GSD_WORKFLOW_PROJECT_ROOT ? "child" : "host";
+}
+
+function defaultWriteGateAdapter(): WriteGateStateAdapter {
+  return defaultWriteGateWriter() === "child" ? childWriteGateAdapter : hostWriteGateAdapter;
 }
 
 /**

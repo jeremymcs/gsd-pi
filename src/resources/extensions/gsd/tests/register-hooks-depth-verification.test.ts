@@ -892,6 +892,8 @@ test("register-hooks agent_end does not re-arm deferred gate after workflow MCP 
     verifiedApprovalGates: [gateId],
     activeQueuePhase: false,
     pendingGateId: null,
+    // Snapshot written without epoch/writer (simulated child) reads as epoch 0.
+    epoch: 0,
   });
 });
 
