@@ -7,7 +7,7 @@ This document names the current UAT contract so prompt, dispatch, browser toolin
 1. `complete-slice` persists the slice summary and UAT spec. It rejects browser-observable specs that declare `artifact-driven` or omit a parseable UAT mode.
 2. `run-uat` runs after slice completion. It classifies the UAT spec through `src/resources/extensions/gsd/uat-policy.ts`, presents the matching tool surface, records typed evidence, and saves one `S##-ASSESSMENT.md` plus a typed attempt record through `gsd_uat_result_save`.
 3. `validate-milestone` runs after all slices close. It dispatches three reviewers in parallel: requirements coverage, cross-slice integration, and assessment/acceptance evidence. It consumes UAT assessments; it is not the UAT producer.
-4. `complete-milestone` runs only after validation records a passing milestone verdict.
+4. `complete-milestone` runs only after every slice has a UAT assessment with verdict `PASS` and validation records a passing milestone verdict. If a slice is missing a PASS verdict, auto mode stops with recovery guidance to run `/gsd dispatch uat`, request a slice-specific UAT rerun when needed, or add remediation slices with `/gsd dispatch reassess`.
 
 ## UAT Mode Policy
 
@@ -34,6 +34,7 @@ GSD exposes a product-level Browser Automation Contract with canonical `browser_
 - `run-uat` requires `gsd_uat_result_save` and rejects forbidden summary/gate write substitutes.
 - `src/resources/extensions/gsd/uat-run.ts` owns `gsd_uat_result_save` lifecycle preparation, run IDs, attempt metadata, worktree capture, and assessment rendering.
 - `gsd_uat_result_save` validates objective evidence, fresh UAT-owned exec evidence, canonical tool presentation, and mode-specific evidence before saving the assessment and attempt artifact.
+- Milestone closeout requires each slice assessment to record `PASS`; missing or non-PASS verdicts block closeout with steps to rerun UAT, inspect `/gsd status`, or dispatch reassessment work.
 - Manual handoff text includes the real worktree path when checks are left as `NEEDS-HUMAN`.
 - Milestone validation downgrades a pass to `needs-attention` when browser-observable acceptance criteria lack persisted browser/runtime evidence.
 

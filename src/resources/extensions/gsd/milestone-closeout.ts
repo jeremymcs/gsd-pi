@@ -12,6 +12,7 @@ import { getMilestone, getMilestoneSlices, isDbAvailable } from "./gsd-db.js";
 import { isClosedStatus } from "./status-guards.js";
 import { runSafely } from "./auto-utils.js";
 import { extractVerdict, isAcceptableUatVerdict } from "./verdict-parser.js";
+import { uatSignoffBlockerGuidance } from "./guidance.js";
 import { logWarning } from "./workflow-logger.js";
 import { hasImplementationArtifacts } from "./milestone-implementation-evidence.js";
 import { buildCompleteMilestonePrompt } from "./auto-prompts.js";
@@ -110,7 +111,7 @@ export async function evaluateCompleteMilestoneDispatch(
       if (!result) {
         return {
           action: "stop",
-          reason: `Cannot complete milestone ${mid}: missing UAT PASS verdict for ${sliceId}. Manual UAT sign-off (PASS) is required before milestone closure.`,
+          reason: uatSignoffBlockerGuidance(mid, sliceId),
           level: "warning",
         };
       }
@@ -118,7 +119,7 @@ export async function evaluateCompleteMilestoneDispatch(
       if (!isAcceptableUatVerdict(verdict, uatType)) {
         return {
           action: "stop",
-          reason: `Cannot complete milestone ${mid}: UAT verdict for ${sliceId} is "${verdict}". Manual UAT sign-off (PASS) is required before milestone closure.`,
+          reason: uatSignoffBlockerGuidance(mid, sliceId, verdict),
           level: "warning",
         };
       }

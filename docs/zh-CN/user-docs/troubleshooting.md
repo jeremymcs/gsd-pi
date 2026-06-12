@@ -153,6 +153,19 @@ rm -rf "$(dirname .gsd)/.gsd.lock"
 - 先执行 `/gsd doctor fix`，在安全回退很明显时自动改写过期 metadata
 - 如果 GSD 仍然阻塞，则请重新创建缺失 branch，或更新 git 偏好设置，让 `git.main_branch` 指向一个真实存在的 branch
 
+### Milestone entry 因 worktree 隔离降级而被阻塞
+
+**症状：** 自动模式在进入 milestone 时报告 `isolation-degraded`，通常发生在之前的 worktree 创建或清理失败之后，Windows 上更常见。
+
+**原因：** 编辑器、终端、杀毒软件、索引器或 Git 工具仍然占用旧的 `.gsd/worktrees/*` 路径，导致 GSD 无法恢复干净的 worktree 隔离。
+
+**解决：**
+
+- 关闭可能占用旧 worktree 路径的工具
+- 如果旧 worktree 中还有需要保留的更改，运行 `/gsd worktree merge <MID>`
+- 如果旧 worktree 已经无用，运行 `/gsd worktree remove <MID>`
+- 运行 `/gsd doctor fix`，然后用 `/gsd auto` 重试；如果 fallback 已经成功，该 milestone 会继续在项目根目录的 `milestone/<MID>` 分支上运行
+
 ### 写 `.gsd/` 文件时出现瞬时 `EBUSY` / `EPERM` / `EACCES`
 
 **症状：** 在 Windows 上，自动模式或 doctor 在更新 `.gsd/` 文件时偶发 `EBUSY`、`EPERM` 或 `EACCES`。

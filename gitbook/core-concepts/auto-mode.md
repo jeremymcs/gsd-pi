@@ -17,7 +17,7 @@ Each slice flows through phases automatically:
 ```
 Plan → Execute (per task) → Complete → Reassess Roadmap → Next Slice
                                                            ↓ (all done)
-                                                   Validate Milestone
+                                           UAT PASS → Validate Milestone
 ```
 
 - **Plan** — scouts the codebase, researches docs, decomposes the slice into tasks
@@ -25,6 +25,8 @@ Plan → Execute (per task) → Complete → Reassess Roadmap → Next Slice
 - **Complete** — writes summary, UAT script, marks roadmap, commits
 - **Reassess** — checks if the roadmap still makes sense after what was learned
 - **Validate** — after all slices, verifies success criteria were actually met
+
+Before milestone closeout, every slice must have a UAT assessment with verdict `PASS`. If a slice is missing a PASS verdict, auto mode stops with guidance to run `/gsd dispatch uat`, request a slice-specific UAT rerun when needed, inspect `/gsd status`, or add remediation slices with `/gsd dispatch reassess`.
 
 ## State Authority
 

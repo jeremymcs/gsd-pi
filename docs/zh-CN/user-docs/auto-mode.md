@@ -13,7 +13,7 @@
 ```
 Plan (with integrated research) → Execute (per task) → Complete → Reassess Roadmap → Next Slice
                                                                                       ↓ (all slices done)
-                                                                              Validate Milestone → Complete Milestone
+                                                                      UAT PASS → Validate Milestone → Complete Milestone
 ```
 
 - **Plan**：巡检代码库、研究相关文档，把 slice 分解成带 must-have 的 task
@@ -25,6 +25,8 @@ Plan (with integrated research) → Execute (per task) → Complete → Reassess
 ### Milestone 完成的幂等行为
 
 Milestone completion 可以安全重试。如果 `complete-milestone` 单元在数据库已经把该 milestone 标记为关闭后再次派发，GSD 会把这次调用视为成功，而不是返回错误。已有的 summary projection 会保持不变，不会追加重复的 completion event，并且工具响应的 details 中会包含 `alreadyComplete: true`，方便 operator 和集成方区分重试与首次完成。
+
+`complete-milestone` 还会强制执行收尾前置条件：每个 slice 都必须有 verdict 为 `PASS` 的 UAT assessment，并且该 milestone 最新的 `milestone-validation` assessment 必须是 `pass`。如果 UAT 缺失或不是 PASS，自动模式会停止并提示运行 `/gsd dispatch uat`、在需要时请求重新运行指定 slice 的 UAT、查看 `/gsd status`，或用 `/gsd dispatch reassess` 添加补救 slice。若 milestone validation 为 `fail`、`partial` 或缺失，则必须先让 `validate-milestone` 写入新的 passing verdict，才能继续 closeout。
 
 ## 关键特性
 

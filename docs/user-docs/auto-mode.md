@@ -13,7 +13,7 @@ Each slice flows through phases automatically:
 ```
 Plan (with integrated research) → Execute (per task) → Complete → Reassess Roadmap → Next Slice
                                                                                       ↓ (all slices done)
-                                                                              Validate Milestone → Complete Milestone
+                                                                      UAT PASS → Validate Milestone → Complete Milestone
 ```
 
 - **Plan** — scouts the codebase, researches relevant docs, and decomposes the slice into tasks with must-haves
@@ -28,7 +28,7 @@ When progressive planning is enabled, GSD fully plans the first slice and may le
 
 Milestone completion is safe to retry. If a `complete-milestone` unit is redispatched after the database already marks the milestone as closed, GSD treats the call as successful instead of returning an error. The existing summary projection is left intact, no duplicate completion event is appended, and the tool response includes `alreadyComplete: true` in its details so operators and integrations can distinguish a retry from the first completion.
 
-`complete-milestone` now also enforces a hard validation prerequisite: the latest `milestone-validation` assessment for that milestone must exist and have verdict `pass`. If the verdict is `fail`, `partial`, or absent, closeout is blocked until `validate-milestone` records a fresh passing verdict.
+`complete-milestone` now also enforces hard closeout prerequisites: each slice must have a UAT assessment with verdict `PASS`, and the latest `milestone-validation` assessment for that milestone must exist with verdict `pass`. If UAT is missing or non-PASS, auto mode stops with guidance to run `/gsd dispatch uat`, request a slice-specific UAT rerun when needed, inspect `/gsd status`, or add remediation slices with `/gsd dispatch reassess`. If milestone validation is `fail`, `partial`, or absent, closeout is blocked until `validate-milestone` records a fresh passing verdict.
 
 ### Planning-Only Milestone Closeout
 

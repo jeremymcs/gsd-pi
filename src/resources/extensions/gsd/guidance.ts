@@ -88,6 +88,84 @@ export function needsRemediationBlockerGuidance(milestoneId: string): string {
   ].join("\n");
 }
 
+// ─── Milestone closeout UAT sign-off blockers ───────────────────────────
+// The first sentence is the blocker finding; the numbered steps are the
+// resolution path. `verdict` is the recorded non-PASS verdict, or undefined
+// when no verdict has been recorded at all.
+
+export function uatSignoffBlockerGuidance(
+  milestoneId: string,
+  sliceId: string,
+  verdict?: string,
+): string {
+  const finding =
+    verdict === undefined
+      ? `missing UAT PASS verdict for ${sliceId}`
+      : `UAT verdict for ${sliceId} is "${verdict}"`;
+  const sliceSpecificRerunStep =
+    `If ${sliceId} is not the most recently completed slice, type a chat request to re-run UAT for ${sliceId}; run-uat will record the verdict through \`gsd_uat_result_save\`.`;
+  const steps =
+    verdict === undefined
+      ? [
+          `1. Run UAT for the most recently completed slice to record a verdict: \`/gsd dispatch uat\``,
+          `2. ${sliceSpecificRerunStep}`,
+          `3. Review the UAT criteria and progress: \`/gsd status\``,
+          `4. After UAT records PASS, run \`/gsd auto\` to complete the milestone.`,
+        ]
+      : [
+          `1. Review the failing UAT findings: \`/gsd status\` (the ${sliceId} ASSESSMENT records what failed)`,
+          `2. Fix the issue, then re-run UAT for the most recently completed slice to record a fresh verdict: \`/gsd dispatch uat\``,
+          `3. ${sliceSpecificRerunStep}`,
+          `4. If the fix needs new implementation work, add remediation slices: \`/gsd dispatch reassess\``,
+          `5. After UAT records PASS, run \`/gsd auto\` to complete the milestone.`,
+        ];
+  return [
+    `Cannot complete milestone ${milestoneId}: ${finding}. Manual UAT sign-off (PASS) is required before milestone closure.`,
+    `Fix options:`,
+    ...steps,
+  ].join("\n");
+}
+
+// ─── Worktree isolation degradation ─────────────────────────────────────
+// The first sentence of each notice is load-bearing for log matching and
+// tests — keep it intact and append guidance after it.
+
+function restoreIsolationHint(milestoneId: string): string {
+  return `To restore isolation: close any processes using the old worktree, merge salvageable work with \`/gsd worktree merge ${milestoneId}\` or remove the stale worktree with \`/gsd worktree remove ${milestoneId}\`, then run \`/gsd doctor fix\`.`;
+}
+
+export function worktreeCreationFailedGuidance(milestoneId: string, error: string): string {
+  return [
+    `Auto-worktree creation for ${milestoneId} failed: ${error}. Continuing in project root.`,
+    `Worktree isolation is degraded for this session.`,
+    restoreIsolationHint(milestoneId),
+  ].join("\n");
+}
+
+export function isolationDegradedFallbackGuidance(milestoneId: string): string {
+  return [
+    `Worktree isolation is degraded. Fell back to branch milestone/${milestoneId}.`,
+    `Work continues safely on the milestone branch in the project root.`,
+    restoreIsolationHint(milestoneId),
+  ].join("\n");
+}
+
+/** Hard entry blockers from auto-start: bootstrap stopped, user must act. */
+export function milestoneEntryBlockedGuidance(
+  milestoneId: string,
+  reason: "creation-failed" | "isolation-degraded",
+): string {
+  const finding =
+    reason === "creation-failed"
+      ? `worktree/branch creation failed. Isolation is degraded.`
+      : `isolation is degraded from a prior worktree failure.`;
+  return [
+    `Cannot enter milestone ${milestoneId}: ${finding}`,
+    restoreIsolationHint(milestoneId),
+    `Then run \`/gsd auto\` to retry.`,
+  ].join("\n");
+}
+
 // ─── Crash recovery resume hints ────────────────────────────────────────
 
 /** Resume hint for an interrupted auto-mode unit, by unit class. */

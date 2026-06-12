@@ -28,6 +28,7 @@ import { ensureGsdSymlink, isInheritedRepo, validateProjectId } from "./repo-ide
 import { migrateToExternalState, recoverFailedMigration } from "./migrate-external.js";
 import { collectSecretsFromManifest } from "../get-secrets-from-user.js";
 import { gsdRoot, resolveMilestoneFile } from "./paths.js";
+import { milestoneEntryBlockedGuidance } from "./guidance.js";
 import { invalidateAllCaches } from "./cache.js";
 import { writeLock, clearLock, readCrashLock, isLockProcessAlive } from "./crash-recovery.js";
 import {
@@ -1645,14 +1646,9 @@ export async function bootstrapAutoSession(
             `Cannot enter milestone ${s.currentMilestoneId}: lease is held by another worker.`,
             "error",
           );
-        } else if (enterResult.reason === "creation-failed") {
+        } else if (enterResult.reason === "creation-failed" || enterResult.reason === "isolation-degraded") {
           ctx.ui.notify(
-            `Cannot enter milestone ${s.currentMilestoneId}: worktree/branch creation failed. Isolation is degraded.`,
-            "error",
-          );
-        } else if (enterResult.reason === "isolation-degraded") {
-          ctx.ui.notify(
-            `Cannot enter milestone ${s.currentMilestoneId}: isolation is degraded from a prior worktree failure. Close processes locking the worktree and retry, or run /gsd doctor fix.`,
+            milestoneEntryBlockedGuidance(s.currentMilestoneId, enterResult.reason),
             "error",
           );
         } else if (enterResult.reason === "invalid-milestone-id") {

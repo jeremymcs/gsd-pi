@@ -154,8 +154,9 @@ Replace the path with the exact global bin directory from your pnpm error messag
 
 **Fix:**
 - Close editors, terminals, or antivirus tools that may be locking `.gsd/worktrees/*` paths.
-- Retry `/gsd auto`; if fallback succeeds, continue in branch mode for that milestone.
-- Run `/gsd doctor` after recovery to verify overall worktree health.
+- If the old worktree has salvageable changes, merge it with `/gsd worktree merge <MID>`.
+- If the old worktree is stale and should be discarded, remove it with `/gsd worktree remove <MID>`.
+- Run `/gsd doctor fix`, then retry `/gsd auto`. If fallback already succeeded, work continues on `milestone/<MID>` in the project root for that milestone.
 
 ### Windows `EPERM` / `EBUSY` while removing stale worktree directories
 

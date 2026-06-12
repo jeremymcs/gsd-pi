@@ -47,6 +47,7 @@ import {
 // callers — production wiring previously injected them via deps; the seam
 // added type churn without enabling test variation.
 import { loadEffectiveGSDPreferences, getIsolationMode } from "./preferences.js";
+import { isolationDegradedFallbackGuidance, worktreeCreationFailedGuidance } from "./guidance.js";
 import { invalidateAllCaches } from "./cache.js";
 import { resolveMilestoneFile } from "./paths.js";
 import { getMilestone, insertMilestone, isDbAvailable, updateMilestoneStatus } from "./gsd-db.js";
@@ -693,10 +694,7 @@ export function _enterMilestoneCore(
         s.basePath = basePath;
         rebuildGitService(s, deps);
         invalidateAllCaches();
-        ctx.notify(
-          `Worktree isolation is degraded. Fell back to branch milestone/${milestoneId}.`,
-          "warning",
-        );
+        ctx.notify(isolationDegradedFallbackGuidance(milestoneId), "warning");
         return { ok: true, mode: "branch", path: basePath };
       } catch (err) {
         debugLog("WorktreeLifecycle", {
@@ -883,10 +881,7 @@ export function _enterMilestoneCore(
       eventType: "worktree-create-failed",
       data: { milestoneId, error: msg, fallback: "project-root" },
     });
-    ctx.notify(
-      `Auto-worktree creation for ${milestoneId} failed: ${msg}. Continuing in project root.`,
-      "warning",
-    );
+    ctx.notify(worktreeCreationFailedGuidance(milestoneId, msg), "warning");
     // Degrade isolation for the rest of this session so mergeAndExit
     // doesn't try to merge a nonexistent worktree branch (#2483)
     s.isolationDegraded = true;
