@@ -85,7 +85,10 @@ import { selectReactiveDispatchBatch } from "./uok/execution-graph.js";
 import { getMilestonePipelineVariant } from "./milestone-scope-classifier.js";
 import { EXECUTION_ENTRY_PHASES, hasFinalizedMilestoneContext } from "./uok/plan-v2.js";
 import { isAutoActive } from "./auto.js";
-import { markDepthVerified } from "./bootstrap/write-gate.js";
+// Host adapter explicitly: auto-dispatch runs in the extension host, and the
+// ambient write-gate exports env-sniff the adapter per call (they are reserved
+// for the workflow MCP child's dynamic-import surface).
+import { hostWriteGateAdapter } from "./bootstrap/write-gate.js";
 import { ensureWorkflowPreferencesCaptured } from "./planning-depth.js";
 import { MILESTONE_ID_RE } from "./milestone-ids.js";
 import {
@@ -684,7 +687,7 @@ export const DISPATCH_RULES: DispatchRule[] = [
       // deadlock. Deep planning is still user-driven even inside auto-mode,
       // so it must wait for explicit approval instead of taking this bypass.
       if (shouldBypassMilestoneDepthGateInAuto(prefs)) {
-        markDepthVerified(mid, basePath);
+        hostWriteGateAdapter.markDepthVerified(mid, basePath);
       }
       return {
         action: "dispatch",
@@ -864,7 +867,7 @@ export const DISPATCH_RULES: DispatchRule[] = [
       // H6 fix (#4973): keep the non-deep auto-mode bypass, but do not
       // pre-verify deep planning's user-facing milestone approval gate.
       if (shouldBypassMilestoneDepthGateInAuto(prefs)) {
-        markDepthVerified(mid, basePath);
+        hostWriteGateAdapter.markDepthVerified(mid, basePath);
       }
       return {
         action: "dispatch",
@@ -1035,7 +1038,7 @@ export const DISPATCH_RULES: DispatchRule[] = [
       // H6 fix (#4973): keep the non-deep auto-mode bypass, but do not
       // pre-verify deep planning's user-facing milestone approval gate.
       if (shouldBypassMilestoneDepthGateInAuto(prefs)) {
-        markDepthVerified(mid, basePath);
+        hostWriteGateAdapter.markDepthVerified(mid, basePath);
       }
       return {
         action: "dispatch",

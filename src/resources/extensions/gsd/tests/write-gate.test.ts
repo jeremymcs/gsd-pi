@@ -24,6 +24,7 @@ import {
   setQueuePhaseActive,
 } from '../index.ts';
 import {
+  childWriteGateAdapter,
   markDepthVerified,
   isMilestoneDepthVerified,
   markApprovalGateVerified,
@@ -317,7 +318,11 @@ test('write-gate: reopening a gate revokes its previous verified approval', () =
       'precondition: verified approval unlocks the final project artifact',
     );
 
-    setPendingGate('depth_verification_project_confirm', base);
+    // A genuine re-ask originates from the workflow MCP child (where
+    // ask_user_questions executes): the child adapter arms unconditionally,
+    // revoking the prior approval. Host-side setPendingGate is guarded
+    // (verified-on-disk wins) and would deliberately suppress this arm.
+    childWriteGateAdapter.setPending('depth_verification_project_confirm', base);
     clearPendingGate(base);
 
     assert.strictEqual(
@@ -789,7 +794,6 @@ test('write-gate: resetWriteGateState persists through dangling .gsd symlink', (
       verifiedApprovalGates: [],
       activeQueuePhase: false,
       pendingGateId: null,
-      epoch: 1,
       writer: 'host',
     });
   } finally {
@@ -834,8 +838,6 @@ test('write-gate: getPendingGate hydrates from disk when workflow MCP verified g
       verifiedApprovalGates: [gateId],
       activeQueuePhase: false,
       pendingGateId: null,
-      // Legacy snapshot written without epoch/writer reads as epoch 0.
-      epoch: 0,
     });
   } finally {
     if (originalEnv === undefined) {

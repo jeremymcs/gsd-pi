@@ -9,11 +9,13 @@
  *   (a) child verifies on disk while the host holds stale memory — the host
  *       re-arm must NOT clobber the verification, on BOTH windows
  *       (tool_execution_start re-arm and the tool_call defer path);
- *   (b) epoch conflict: host observed epoch N, child persists N+1, the host's
- *       next persist re-merges instead of overwriting;
+ *   (b) concurrent writes: every persist is an unconditional read-merge-write
+ *       (read disk → union-merge → mutate → atomic rename), so a write the
+ *       other process landed in between is folded in, never overwritten;
  *   (c) two basePaths defer approval gates in the same process — both stay
  *       deferred and both activate (regression for the old single global slot);
- *   (d) old snapshot files without epoch/writer fields keep loading.
+ *   (d) old snapshot files (including ones carrying the retired epoch field)
+ *       keep loading; stale fields are dropped on the next write.
  */
 
 import test from "node:test";
@@ -92,15 +94,14 @@ test("seam: host setPending does not clobber a child verification on disk", (t) 
   const dir = makeTempDir("no-clobber-adapter");
   t.after(() => cleanup(dir));
 
-  // Host has stale memory: it armed the gate earlier (epoch 1 on disk).
-  assert.equal(setPendingGate(GATE, dir), undefined);
+  // Host has stale memory: it armed the gate earlier (persisted to disk).
+  assert.equal(setPendingGate(GATE, dir), true, "fresh gate must arm");
   assert.equal(getPendingGate(dir), GATE);
 
-  // Child verifies the gate in its own process (higher epoch on disk).
+  // Child verifies the gate in its own process (newer write on disk).
   foreignProcessWrites(dir, {
     verifiedDepthMilestones: ["M007"],
     verifiedApprovalGates: [GATE],
-    epoch: 5,
     writer: "child",
   });
 
@@ -120,7 +121,6 @@ test("seam: tool_call defer path does not block tools for a gate the child verif
   foreignProcessWrites(dir, {
     verifiedDepthMilestones: ["M007"],
     verifiedApprovalGates: [GATE],
-    epoch: 3,
     writer: "child",
   });
 
@@ -160,7 +160,6 @@ test("seam: tool_execution_start re-arm window keeps the child verification", as
   foreignProcessWrites(dir, {
     verifiedDepthMilestones: ["M007"],
     verifiedApprovalGates: [GATE],
-    epoch: 4,
     writer: "child",
   });
 
@@ -180,42 +179,38 @@ test("seam: tool_execution_start re-arm window keeps the child verification", as
   assert.ok(loadWriteGateSnapshot(dir).verifiedDepthMilestones.includes("M007"));
 });
 
-// ── (b) epoch conflict re-merges instead of overwriting ─────────────────────
+// ── (b) concurrent writes re-merge instead of overwriting ───────────────────
 
-test("seam: host persist re-merges when the child advanced the epoch", (t) => {
-  const dir = makeTempDir("epoch-conflict");
+test("seam: host persist re-merges a concurrent child write (unconditional read-merge-write)", (t) => {
+  const dir = makeTempDir("concurrent-write");
   t.after(() => cleanup(dir));
 
-  // Host observes epoch 1 (its own write).
+  // Host persists its own verification.
   markDepthVerified("M001", dir);
-  const observed = loadWriteGateSnapshot(dir);
-  assert.equal(observed.epoch, 1);
 
-  // Child persists epoch 2 with a different verification while the host is idle.
+  // Child lands a different verification on disk while the host is idle.
   foreignProcessWrites(dir, {
     verifiedDepthMilestones: ["M002"],
-    epoch: 2,
     writer: "child",
   });
 
-  // Host persists again — must union, not overwrite, and bump past disk.
+  // Host persists again — every mutation re-reads the disk snapshot and
+  // union-merges before writing, so the child's verification survives.
   markDepthVerified("M003", dir);
   const merged = loadWriteGateSnapshot(dir);
   assert.deepEqual(merged.verifiedDepthMilestones, ["M001", "M002", "M003"]);
-  assert.equal(merged.epoch, 3, "epoch must advance past the conflicting disk write");
   assert.equal(readDiskRaw(dir).writer, "host");
 });
 
-test("seam: childWriteGateAdapter is write-through and epoch-stamps", (t) => {
+test("seam: childWriteGateAdapter is write-through and stamps writer provenance", (t) => {
   const dir = makeTempDir("child-write-through");
   t.after(() => cleanup(dir));
 
-  foreignProcessWrites(dir, { verifiedDepthMilestones: ["M001"], epoch: 7, writer: "host" });
+  foreignProcessWrites(dir, { verifiedDepthMilestones: ["M001"], writer: "host" });
   childWriteGateAdapter.markDepthVerified("M002", dir);
 
   const disk = readDiskRaw(dir);
   assert.deepEqual(disk.verifiedDepthMilestones, ["M001", "M002"], "fresh disk read, then mutate");
-  assert.equal(disk.epoch, 8);
   assert.equal(disk.writer, "child");
 });
 
@@ -264,9 +259,9 @@ test("seam: two basePaths defer gates in one process and both activate", async (
   }
 });
 
-// ── (d) backward compatibility: snapshots without epoch ─────────────────────
+// ── (d) backward compatibility: legacy snapshot fields ──────────────────────
 
-test("seam: old snapshot without epoch/writer loads as epoch 0 and upgrades on write", (t) => {
+test("seam: old snapshot with a retired epoch field loads and sheds it on write", (t) => {
   const dir = makeTempDir("legacy-snapshot");
   t.after(() => cleanup(dir));
 
@@ -277,19 +272,22 @@ test("seam: old snapshot without epoch/writer loads as epoch 0 and upgrades on w
       verifiedApprovalGates: ["depth_verification_M001_confirm"],
       activeQueuePhase: false,
       pendingGateId: null,
+      // Written by an older build that still stamped the write-only epoch.
+      epoch: 7,
     }),
     "utf-8",
   );
 
   const loaded = loadWriteGateSnapshot(dir);
-  assert.equal(loaded.epoch, 0, "missing epoch reads as 0");
   assert.deepEqual(loaded.verifiedDepthMilestones, ["M001"]);
+  assert.equal("epoch" in loaded, false, "retired epoch field is not surfaced");
 
   const refreshed = refreshWriteGateStateFromDisk(dir);
   assert.ok(refreshed.verifiedDepthMilestones.includes("M001"));
 
   markDepthVerified("M002", dir);
   const upgraded = readDiskRaw(dir);
-  assert.equal(upgraded.epoch, 1, "first epoch-aware write stamps epoch 1");
   assert.deepEqual(upgraded.verifiedDepthMilestones, ["M001", "M002"]);
+  assert.equal("epoch" in upgraded, false, "retired epoch field is dropped on rewrite");
+  assert.equal(upgraded.writer, "host");
 });
