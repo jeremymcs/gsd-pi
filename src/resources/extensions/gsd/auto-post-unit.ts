@@ -96,6 +96,7 @@ import {
 } from "./project-research-policy.js";
 import { validateArtifact } from "./schemas/validate.js";
 import { verificationRetryKey } from "./auto/verification-retry-policy.js";
+import { saveCustomVerifyRetryCounts } from "./auto/custom-verify-retry-store.js";
 import { getLedger } from "./metrics.js";
 import { getUnitCostSpikeAction, resolveUnitCostSpikeMultiplier } from "./auto-budget.js";
 import { resolveCanonicalMilestoneRoot } from "./worktree-manager.js";
@@ -2159,6 +2160,7 @@ export async function postUnitPreVerification(pctx: PostUnitContext, opts?: PreV
               }
             }
             s.exhaustedVerificationUnits.add(retryKey);
+            saveCustomVerifyRetryCounts(s, { logFailure: err => debugLog("postUnit", { phase: "save-verify-retries-failed", error: err instanceof Error ? err.message : String(err) }) });
             debugLog("postUnit", { phase: "artifact-verify-exhausted", unitType: s.currentUnit.type, unitId: s.currentUnit.id, attempt });
             ctx.ui.notify(
               `${failureDetails} Pausing auto-mode after ${MAX_ARTIFACT_VERIFICATION_RETRIES} retries.`,
@@ -2168,6 +2170,7 @@ export async function postUnitPreVerification(pctx: PostUnitContext, opts?: PreV
             return "dispatched";
           }
           s.verificationRetryCount.set(retryKey, attempt);
+          saveCustomVerifyRetryCounts(s, { logFailure: err => debugLog("postUnit", { phase: "save-verify-retries-failed", error: err instanceof Error ? err.message : String(err) }) });
           s.pendingVerificationRetry = {
             unitId: s.currentUnit.id,
             failureContext: `${failureDetails} (attempt ${attempt}/${MAX_ARTIFACT_VERIFICATION_RETRIES}).`,
@@ -2191,6 +2194,8 @@ export async function postUnitPreVerification(pctx: PostUnitContext, opts?: PreV
         }
         s.verificationRetryCount.delete(retryKey);
         s.verificationRetryFailureHashes.delete(retryKey);
+        s.exhaustedVerificationUnits.delete(retryKey);
+        saveCustomVerifyRetryCounts(s, { logFailure: err => debugLog("postUnit", { phase: "save-verify-retries-failed", error: err instanceof Error ? err.message : String(err) }) });
 
         if (s.currentUnit.type === "complete-milestone") {
           const { milestone: mid } = parseUnitId(s.currentUnit.id);

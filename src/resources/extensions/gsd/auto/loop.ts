@@ -389,6 +389,8 @@ export async function autoLoop(
   const unitDispatchDeps = createExecutionGraphUnitDispatchDeps();
   // Load persisted stuck state so counters survive session restarts (#3704)
   const persisted = loadStuckState(s);
+  // Load persisted verification retry state so the exhausted-unit guard fires on restart (#651)
+  hydrateCustomVerifyRetryCounts(s, { logFailure: logCustomVerifyRetryLoadFailure });
   const loopState: LoopState = {
     recentUnits: persisted.recentUnits,
     stuckRecoveryAttempts: persisted.stuckRecoveryAttempts,
