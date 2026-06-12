@@ -536,6 +536,67 @@ test("executePlanMilestone releases its one-shot milestone lease after planning"
   }
 });
 
+test("executePlanMilestone does not leave a placeholder behind when planning validation fails", async () => {
+  const base = makeTmpBase();
+  try {
+    openTestDb(base);
+
+    // handlePlanMilestone rejects empty slice arrays during validation. The
+    // executor inserts a queued placeholder row on first-time planning and
+    // must roll it back when the handler then returns an error.
+    const invalid = { ...validMilestonePlan("M042"), slices: [] };
+    const result = await inProjectDir(base, () => executePlanMilestone(invalid, base));
+
+    assert.equal(result.isError, true);
+    assert.equal(result.details.operation, "plan_milestone");
+    const milestones = getAllMilestones();
+    assert.equal(milestones.find(m => m.id === "M042"), undefined,
+      "failed planning must not leave a placeholder milestone row behind");
+    assert.equal(getMilestoneLease("M042"), null,
+      "failed planning must not leave a lease row behind");
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
+test("executePlanMilestone does not delete a peer worker's milestone row on lease conflict", async () => {
+  const base = makeTmpBase();
+  try {
+    openTestDb(base);
+
+    // Simulate a peer worker (different project_root) that has already
+    // created the milestone row and taken its lease. The one-shot executor
+    // must observe the active lease and refuse — without removing the peer's
+    // milestone row or lease. The pre-rollback bug was that
+    // INSERT OR IGNORE's silent no-op was treated as proof of authorship and
+    // the cleanup path then deleted the peer's row.
+    const peer = registerAutoWorker({ projectRootRealpath: join(base, "peer-project") });
+    seedMilestone("M050", "Peer-owned milestone");
+    const peerLease = claimMilestoneLease(peer, "M050");
+    assert.equal(peerLease.ok, true);
+    const peerLeaseToken = peerLease.ok ? peerLease.token : -1;
+
+    const result = await inProjectDir(base, () => executePlanMilestone(validMilestonePlan("M050"), base));
+
+    assert.equal(result.isError, true);
+    assert.equal(result.details.error, "milestone_lease_conflict");
+    const peerMilestone = getAllMilestones().find(m => m.id === "M050");
+    assert.ok(peerMilestone, "peer milestone row must survive the one-shot conflict path");
+    assert.equal(peerMilestone?.title, "Peer-owned milestone",
+      "peer milestone row must not be clobbered or recreated");
+    const surviving = getMilestoneLease("M050");
+    assert.ok(surviving, "peer lease row must survive");
+    assert.equal(surviving.status, "held", "peer must still hold the lease");
+    assert.equal(surviving.worker_id, peer);
+    assert.equal(surviving.fencing_token, peerLeaseToken,
+      "peer's fencing token must not be incremented by the rejected one-shot");
+  } finally {
+    closeDatabase();
+    cleanup(base);
+  }
+});
+
 test("executePlanSlice writes task planning state and rendered plan artifacts", async () => {
   const base = makeTmpBase();
   try {
