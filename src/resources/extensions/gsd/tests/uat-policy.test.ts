@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   classifyUatContent,
+  classifyUatContentForRun,
   getDeclaredUatType,
   getUatBrowserToolSupportError,
   isPartialEligibleUatType,
@@ -36,6 +37,51 @@ describe("uat-policy", () => {
     ].join("\n");
     assert.equal(getDeclaredUatType(content), "browser-executable");
     assert.equal(shouldEscalateArtifactUatToBrowser(content), false);
+  });
+
+  it("promotes browser-executable UAT when slice context names test:uat but UAT only documents test:server (M007/S01)", () => {
+    const uatFile = [
+      "# S01 UAT",
+      "",
+      "## UAT Type",
+      "- UAT mode: browser-executable",
+      "",
+      "## Preconditions",
+      "- Start the dev/local verification server with `npm run test:server`.",
+      "- Open the app at the localhost URL printed by the server.",
+    ].join("\n");
+    const sliceContext = [
+      "Fresh slice-level verification ran via `gsd_exec` with `npm run test:uat` and passed.",
+      "The run produced PASS with browser diagnostics consoleErrors=0.",
+    ].join("\n");
+
+    assert.equal(classifyUatContentForRun(uatFile, sliceContext).effectiveType, "runtime-executable");
+    assert.equal(classifyUatContentForRun(uatFile).effectiveType, "browser-executable");
+  });
+
+  it("promotes browser-executable UAT to runtime-executable when a self-contained harness is named (M006/S01)", () => {
+    const content = [
+      "# S01 UAT",
+      "",
+      "## UAT Type",
+      "- UAT mode: browser-executable",
+      "",
+      "## Preconditions",
+      "- Start the local app server with `npm run start`.",
+      "- Open the app at `http://127.0.0.1:4173`.",
+      "",
+      "## Evidence",
+      "- Fresh closeout verification command: `node --check app.js && node --check tests/browser/search-uat.mjs && npm run test:uat`",
+    ].join("\n");
+
+    assert.equal(resolveEffectiveUatType(content), "runtime-executable");
+    assert.deepEqual(classifyUatContent(content), {
+      declaredType: "browser-executable",
+      modeDeclared: true,
+      effectiveType: "runtime-executable",
+      browserRequired: false,
+      shouldDispatchByDefault: true,
+    });
   });
 
   it("parses a UAT mode line case-insensitively with bold markers", () => {

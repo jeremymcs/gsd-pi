@@ -84,13 +84,58 @@ export function getDeclaredUatType(content: string): UatType {
   return extractUatType(content) ?? "artifact-driven";
 }
 
+/** Self-contained browser UAT harnesses that manage server lifecycle internally. */
+const SELF_CONTAINED_RUNTIME_UAT_COMMAND_RE =
+  /\b(?:npm run test:uat|node\s+(?:--check\s+\S+\s+&&\s+)*tests\/browser\/search-uat\.mjs|npx playwright test(?:\s+\S+)?)\b/i;
+
+export function hasSelfContainedRuntimeUatCommand(content: string): boolean {
+  return SELF_CONTAINED_RUNTIME_UAT_COMMAND_RE.test(content);
+}
+
+function resolveEffectiveUatTypeFromPolicy(
+  declaredType: UatType,
+  browserRequired: boolean,
+  content: string,
+): UatType {
+  let effectiveType = declaredType === "artifact-driven" && browserRequired
+    ? "browser-executable"
+    : declaredType;
+
+  // M006/S01 regression: specs often declare browser-executable with localhost
+  // preconditions while the Evidence section names a runtime harness such as
+  // `npm run test:uat`. Interactive browser_* checks then race a fixed port
+  // against the script's own ephemeral server — run the harness instead.
+  if (
+    effectiveType === "browser-executable" &&
+    hasSelfContainedRuntimeUatCommand(content)
+  ) {
+    effectiveType = "runtime-executable";
+  }
+
+  return effectiveType;
+}
+
 export function classifyUatContent(content: string): UatContentPolicy {
+  return classifyUatContentForRun(content);
+}
+
+/**
+ * Classify UAT mode for run-uat dispatch. Supplemental context (slice summary,
+ * verification excerpts) can name a self-contained harness even when the UAT
+ * file only documents a separate server command such as `npm run test:server`.
+ */
+export function classifyUatContentForRun(content: string, supplementalContext = ""): UatContentPolicy {
   const parsedType = extractUatType(content);
   const declaredType = parsedType ?? "artifact-driven";
   const browserRequired = hasBrowserRequiredText(content);
-  const effectiveType = declaredType === "artifact-driven" && browserRequired
-    ? "browser-executable"
-    : declaredType;
+  const combinedForHarness = supplementalContext.trim()
+    ? `${content}\n\n${supplementalContext}`
+    : content;
+  const effectiveType = resolveEffectiveUatTypeFromPolicy(
+    declaredType,
+    browserRequired,
+    combinedForHarness,
+  );
 
   return {
     declaredType,
