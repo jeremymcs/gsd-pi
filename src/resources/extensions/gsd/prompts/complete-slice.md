@@ -36,7 +36,7 @@ Use `subagent` only when useful: reviewer, security, or tester. Apply findings b
 8. Address every Gate to Close. Q8 = **Operational Readiness**: health signal, failure signal, recovery, monitoring gaps. Omit empty sections.
 9. If requirement status changed, call `gsd_requirement_update`; do not write `.gsd/REQUIREMENTS.md` directly.
 10. Prepare `gsd_slice_complete` content with camelCase fields `milestoneId`, `sliceId`, `sliceTitle`, `oneLiner`, `narrative`, `verification`, and `uatContent`.
-11. Draft concrete UAT with preconditions, steps, expected outcomes, edge cases, and UAT Type.
+11. Draft concrete UAT with preconditions, steps, expected outcomes, edge cases, and UAT Type. Declare the type as a bullet under a `## UAT Type` heading, exactly like `- UAT mode: browser-executable`.
     **Web apps:** when inlined Web App UAT guidance is present, declare `browser-executable` or `runtime-executable` (not `artifact-driven`) for localhost/browser/screenshot steps; include dev-server preconditions and name Playwright specs when they exist.
 12. Review the inlined task-summary excerpts for DECISIONS.md/KNOWLEDGE.md-worthy decisions and gotchas. Read full `*-SUMMARY.md` only if needed. Capture with `capture_thought`; do not append knowledge files.
 13. When verification passes, call `gsd_slice_complete`. The DB-backed tool is the canonical write path. Do **not** manually write `{{sliceSummaryPath}}`. Do **not** manually write `{{sliceUatPath}}`. Do not edit roadmap checkboxes.

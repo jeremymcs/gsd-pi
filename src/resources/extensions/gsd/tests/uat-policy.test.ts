@@ -24,6 +24,47 @@ describe("uat-policy", () => {
     assert.equal(getDeclaredUatType("# UAT\n\nCheck generated files."), "artifact-driven");
   });
 
+  it("parses a bare keyword under ## UAT Type (M006/S01 agent format drift)", () => {
+    const content = [
+      "# S01 UAT",
+      "",
+      "## UAT Type",
+      "browser-executable",
+      "",
+      "## Preconditions",
+      "- Open the app at http://127.0.0.1:4173.",
+    ].join("\n");
+    assert.equal(getDeclaredUatType(content), "browser-executable");
+    assert.equal(shouldEscalateArtifactUatToBrowser(content), false);
+  });
+
+  it("parses a UAT mode line case-insensitively with bold markers", () => {
+    const content = [
+      "## UAT Type",
+      "- **UAT Mode:** Runtime-Executable (npx playwright test)",
+    ].join("\n");
+    assert.equal(getDeclaredUatType(content), "runtime-executable");
+  });
+
+  it("does not parse prose in the section as a mode declaration", () => {
+    const content = [
+      "## UAT Type",
+      "- Why this mode is sufficient: static checks cover the schema.",
+    ].join("\n");
+    assert.equal(getDeclaredUatType(content), "artifact-driven");
+  });
+
+  it("treats an explicit UAT mode line with an unrecognised value as undeclared", () => {
+    const content = [
+      "## UAT Type",
+      "- UAT mode: manual-spot-check",
+      "- browser-executable would also work",
+    ].join("\n");
+    // The explicit declaration wins (and fails to parse) — the stray keyword
+    // bullet below it must not be promoted to the declared mode.
+    assert.equal(getDeclaredUatType(content), "artifact-driven");
+  });
+
   it("escalates artifact-driven UAT to browser-executable when the spec requires browser work", () => {
     const content = [
       "## UAT Type",
@@ -38,6 +79,7 @@ describe("uat-policy", () => {
     assert.equal(shouldDispatchUatForContent(content, undefined), true);
     assert.deepEqual(classifyUatContent(content), {
       declaredType: "artifact-driven",
+      modeDeclared: true,
       effectiveType: "browser-executable",
       browserRequired: true,
       shouldDispatchByDefault: true,
