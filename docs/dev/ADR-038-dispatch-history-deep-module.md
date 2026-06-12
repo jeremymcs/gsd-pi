@@ -16,7 +16,7 @@ Dispatch history deepens behind one module, `auto/dispatch-history.ts`:
 - One canonical key home: `buildDispatchKey` / `normalizeDispatchKey` / `parseDispatchKey` (canonical `type:id`; legacy `type/id` normalized on rehydrate). `STUCK_WINDOW_SIZE` lives here.
 - The Auto Orchestration module rehydrates the window from the `unit_dispatches` ledger in `start()`, and in `resume()` when the window is empty — cross-session stuck detection fires by construction (#482). In-process pause/resume preservation (#572) is unchanged.
 - At window saturation the orchestrator consults the module's `detectStuck` verdict, gaining retry-budget suppression (saturated-but-in-backoff proceeds instead of hard-stopping) and rule-based reasons. Graduated stuck-artifact recovery is unchanged.
-- `retryBudgetSuppresses` is format-tolerant: falls back to bare `unit_id` + `unit_type` match, fixing the production-never-matched compound-key lookup.
+- Retry-budget suppression queries the bare `unit_id` + `unit_type` match first (the production ledger shape), with the compound-key lookup as fallback — fixing the production-never-matched compound-key lookup. The key grammar itself lives in one home (`auto/dispatch-key.ts`: `buildDispatchKey`/`parseDispatchKey`/`normalizeDispatchKey`, re-exported by `dispatch-history.ts`).
 
 ## Consequences
 
