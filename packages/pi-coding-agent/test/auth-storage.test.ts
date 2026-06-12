@@ -483,6 +483,23 @@ describe("AuthStorage", () => {
 			expect(authStorage.hasAuth("custom-provider")).toBe(false);
 			expect(authStorage.getAuthStatus("custom-provider")).toEqual({ configured: false });
 		});
+
+		test("prefers OAuth over stored API key for OAuth-capable providers", async () => {
+			authStorage = AuthStorage.inMemory({
+				anthropic: [
+					{ type: "api_key", key: "sk-ant-stored-api-key" },
+					{
+						type: "oauth",
+						access: "oauth-access-token",
+						refresh: "oauth-refresh-token",
+						expires: Date.now() + 60_000,
+					},
+				],
+			});
+
+			const apiKey = await authStorage.getApiKey("anthropic");
+			expect(apiKey).toBe("oauth-access-token");
+		});
 	});
 
 	describe("runtime overrides", () => {
