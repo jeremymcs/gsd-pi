@@ -306,3 +306,53 @@ test("seam: old snapshot with a retired epoch field loads and sheds it on write"
   assert.equal("epoch" in upgraded, false, "retired epoch field is dropped on rewrite");
   assert.equal(upgraded.writer, "host");
 });
+
+// ── (e) corrupt snapshot is treated as a reset (matches "delete the file") ──
+
+test("seam: corrupt snapshot file resets host state instead of persisting stale pendingGateId", (t) => {
+  const dir = makeTempDir("corrupt-snapshot");
+  t.after(() => cleanup(dir));
+
+  // Host arms a gate; stale pendingGateId now lives in memory and on disk.
+  assert.equal(setPendingGate(GATE, dir), true);
+  assert.equal(getPendingGate(dir), GATE);
+
+  // The snapshot file is corrupted out-of-band (e.g. partial write from a
+  // crashed editor, foreign tool, or filesystem fault).
+  writeFileSync(snapshotPath(dir), "{ not json", "utf-8");
+
+  // refreshWriteGateStateFromDisk must treat the unreadable file the same
+  // as a missing file: full reset, including dropping the stale pending id.
+  const refreshed = refreshWriteGateStateFromDisk(dir);
+  assert.equal(refreshed.pendingGateId, null, "stale pendingGateId must not survive a corrupt snapshot");
+  assert.deepEqual(refreshed.verifiedDepthMilestones, []);
+  assert.deepEqual(refreshed.verifiedApprovalGates, []);
+  assert.equal(getPendingGate(dir), null);
+
+  // A subsequent mutation must not write the stale gate back to disk.
+  markDepthVerified("M042", dir);
+  const persisted = readDiskRaw(dir);
+  assert.equal(persisted.pendingGateId, null, "next persist must not re-stamp the stale pending id");
+  assert.deepEqual(persisted.verifiedDepthMilestones, ["M042"]);
+});
+
+test("seam: mutateWriteGateState reset path drops stale pendingGateId on a corrupt snapshot", (t) => {
+  const dir = makeTempDir("corrupt-snapshot-mutate");
+  t.after(() => cleanup(dir));
+
+  // Host arms a gate first.
+  assert.equal(setPendingGate(GATE, dir), true);
+
+  // Corrupt the snapshot directly (skipping the refresh path so we exercise
+  // the reconcile-on-mutate branch in mutateWriteGateState).
+  writeFileSync(snapshotPath(dir), "}}}", "utf-8");
+
+  // markDepthVerified runs through mutateWriteGateState; the reconcile pass
+  // must reset the in-memory state when the disk read returns null, even
+  // though the file still exists on disk.
+  markDepthVerified("M099", dir);
+
+  const persisted = readDiskRaw(dir);
+  assert.equal(persisted.pendingGateId, null, "stale pending id must not be persisted after a corrupt-snapshot reconcile");
+  assert.deepEqual(persisted.verifiedDepthMilestones, ["M099"]);
+});

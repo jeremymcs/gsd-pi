@@ -322,9 +322,11 @@ function replaceStateFromSnapshot(state: InMemoryWriteGateState, snapshot: Write
  * pending-gate memory and `activateDeferredApprovalGate` can re-arm a gate
  * that the subprocess already cleared on disk.
  *
- * Uses the union merge rule (mergeSnapshotIntoState) when a snapshot file
- * exists; a missing file is a full reset (replace with empty) so deleting
- * the file still clears all gate state.
+ * Uses the union merge rule (mergeSnapshotIntoState) when a readable
+ * snapshot file exists; a missing or unparseable file is a full reset
+ * (replace with empty) so deleting the file still clears all gate state,
+ * and a corrupt file does not leave stale `pendingGateId` in memory for
+ * the next mutation to persist back.
  *
  * Returns the reconciled snapshot so callers that need to inspect it
  * (e.g. re-arm guards) avoid a second disk read.
@@ -335,7 +337,7 @@ export function refreshWriteGateStateFromDisk(basePath: string): WriteGateSnapsh
   const disk = readDiskSnapshot(basePath);
   if (disk) {
     mergeSnapshotIntoState(state, disk);
-  } else if (!existsSync(writeGateSnapshotPath(basePath))) {
+  } else {
     replaceStateFromSnapshot(state, EMPTY_SNAPSHOT);
   }
   return currentWriteGateSnapshot(basePath);
@@ -366,7 +368,11 @@ function mutateWriteGateState(
     const disk = readDiskSnapshot(basePath);
     if (disk) {
       mergeSnapshotIntoState(state, disk);
-    } else if (!existsSync(writeGateSnapshotPath(basePath))) {
+    } else {
+      // Missing OR unparseable on disk: treat as a full reset. Keeping
+      // stale in-memory state across a corrupt snapshot would persist it
+      // back on this very mutation and defeat the documented
+      // "delete the file to clear the HARD BLOCK gate" escape hatch.
       replaceStateFromSnapshot(state, EMPTY_SNAPSHOT);
     }
   }
