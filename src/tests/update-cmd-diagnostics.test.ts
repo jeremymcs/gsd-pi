@@ -207,6 +207,62 @@ test("resolveInstallCommand returns npm command when not running under Bun (#414
   }
 });
 
+test("resolveInstallCommand pins Windows npm updates to the running global prefix (#490)", async () => {
+  const { resolveInstallCommand } = await import("../update-check.js");
+  const orig = (process.versions as Record<string, string | undefined>).bun;
+  try {
+    delete (process.versions as Record<string, string | undefined>).bun;
+    assert.equal(
+      resolveInstallCommand("@opengsd/gsd-pi@latest", {
+        argv1: "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@opengsd\\gsd-pi\\dist\\loader.js",
+        env: {} as any,
+        platform: "win32",
+        // Simulate the npm.cmd sibling that lives at the global prefix root.
+        existsFn: (p) => p === "C:\\Users\\me\\AppData\\Roaming\\npm\\npm.cmd",
+      }),
+      'npm --prefix "C:\\Users\\me\\AppData\\Roaming\\npm" install -g @opengsd/gsd-pi@latest',
+    );
+  } finally {
+    if (orig !== undefined) {
+      (process.versions as Record<string, string | undefined>).bun = orig;
+    }
+  }
+});
+
+test("resolveInstallCommand falls back to plain npm for Windows non-global layouts (npx cache, local node_modules)", async () => {
+  const { resolveInstallCommand } = await import("../update-check.js");
+  const orig = (process.versions as Record<string, string | undefined>).bun;
+  try {
+    delete (process.versions as Record<string, string | undefined>).bun;
+
+    // npx cache: directory above node_modules has no npm.cmd sibling.
+    assert.equal(
+      resolveInstallCommand("@opengsd/gsd-pi@latest", {
+        argv1: "C:\\Users\\me\\AppData\\Local\\npm-cache\\_npx\\abc123\\node_modules\\@opengsd\\gsd-pi\\dist\\loader.js",
+        env: {} as any,
+        platform: "win32",
+        existsFn: () => false,
+      }),
+      "npm install -g @opengsd/gsd-pi@latest",
+    );
+
+    // Local project node_modules: same story — no npm.cmd at the project root.
+    assert.equal(
+      resolveInstallCommand("@opengsd/gsd-pi@latest", {
+        argv1: "C:\\Users\\me\\projects\\app\\node_modules\\@opengsd\\gsd-pi\\dist\\loader.js",
+        env: {} as any,
+        platform: "win32",
+        existsFn: () => false,
+      }),
+      "npm install -g @opengsd/gsd-pi@latest",
+    );
+  } finally {
+    if (orig !== undefined) {
+      (process.versions as Record<string, string | undefined>).bun = orig;
+    }
+  }
+});
+
 test("resolveInstallCommand returns pnpm command when installed via pnpm", async () => {
   const { resolveInstallCommand } = await import("../update-check.js");
   const orig = (process.versions as Record<string, string | undefined>).bun;
