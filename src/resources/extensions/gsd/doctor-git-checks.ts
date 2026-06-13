@@ -5,10 +5,9 @@ import { dirname, join } from "node:path";
 
 import type { DoctorIssue, DoctorIssueCode } from "./doctor-types.js";
 import { loadFile } from "./files.js";
-import { parseRoadmap as parseLegacyRoadmap } from "./parsers-legacy.js";
-import { isDbAvailable, getMilestone } from "./gsd-db.js";
 import { resolveMilestoneFile } from "./paths.js";
-import { deriveState, isMilestoneComplete } from "./state.js";
+import { deriveState } from "./state.js";
+import { isCompletedMilestoneTerminal } from "./milestone-closeout.js";
 import { allWorktreesDirs, createWorktree, listWorktrees, resolveGitDir } from "./worktree-manager.js";
 import { abortAndReset } from "./git-self-heal.js";
 import { RUNTIME_EXCLUSION_PATHS, resolveMilestoneIntegrationBranch, writeIntegrationBranch } from "./git-service.js";
@@ -144,22 +143,6 @@ function getSnapshotDiffCheckFailure(basePath: string): string | null {
   }
 
   return failures.length > 0 ? failures.join("\n") : null;
-}
-
-async function isCompletedMilestoneTerminal(basePath: string, milestoneId: string): Promise<boolean> {
-  const summaryPath = resolveMilestoneFile(basePath, milestoneId, "SUMMARY");
-  if (!summaryPath) return false;
-
-  if (isDbAvailable()) {
-    const milestone = getMilestone(milestoneId);
-    return !!milestone && milestone.status === "complete";
-  }
-
-  const roadmapPath = resolveMilestoneFile(basePath, milestoneId, "ROADMAP");
-  const roadmapContent = roadmapPath ? await loadFile(roadmapPath) : null;
-  if (!roadmapContent) return false;
-  const roadmap = parseLegacyRoadmap(roadmapContent);
-  return isMilestoneComplete(roadmap);
 }
 
 export async function checkGitHealth(

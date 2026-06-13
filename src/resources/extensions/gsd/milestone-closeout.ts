@@ -110,7 +110,8 @@ export async function repairMissingMilestoneSummaryProjection(
   if ("error" in result) {
     return { ok: false, error: result.error };
   }
-  if (result.stale || !summaryPath || !existsSync(summaryPath)) {
+  const writtenSummaryPath = result.summaryPath;
+  if (result.stale || !writtenSummaryPath || !existsSync(writtenSummaryPath)) {
     return { ok: false, error: "milestone SUMMARY projection write failed" };
   }
   return { ok: true };
