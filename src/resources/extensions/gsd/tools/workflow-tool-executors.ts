@@ -11,7 +11,6 @@ import {
   getSliceStatusSummary,
   getSliceTaskCounts,
   insertMilestone,
-  deleteMilestone,
   insertAssessment,
   insertGateRun,
   readTransaction,
@@ -23,6 +22,7 @@ import { generateRequirementsMd, saveArtifactToDb } from "../db-writer.js";
 import { clearPathCache, normalizeRealPath, relSliceFile, resolveGsdPathContract, resolveMilestoneFile, resolveSliceFile } from "../paths.js";
 import { saveFile, clearParseCache } from "../files.js";
 import { unlinkSync } from "node:fs";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import type { CompleteMilestoneParams } from "./complete-milestone.js";
 import { handleCompleteMilestone } from "./complete-milestone.js";
@@ -49,7 +49,7 @@ import { logError, logWarning } from "../workflow-logger.js";
 import { invalidateStateCache } from "../state.js";
 import { loadEffectiveGSDPreferences } from "../preferences.js";
 import { parseProject } from "../schemas/parsers.js";
-import { getAutoRuntimeSnapshot } from "../auto-runtime-state.js";
+import { autoSession, getAutoRuntimeSnapshot, isAutoActive } from "../auto-runtime-state.js";
 import { renderPlanFromDb } from "../markdown-renderer.js";
 import {
   prepareUatRun,
@@ -110,6 +110,24 @@ function blockIfWrongAutoUnit(requiredUnitType: string, operation: string): Tool
   return {
     content: [{ type: "text", text: error }],
     details: { operation, error },
+    isError: true,
+  };
+}
+
+function milestoneLeaseConflictResult(
+  milestoneId: string,
+  byWorker: string,
+  expiresAt: string,
+): ToolExecutionResult {
+  return {
+    content: [{ type: "text", text: `Milestone ${milestoneId} is currently leased by ${byWorker}. Retry after ${expiresAt}.` }],
+    details: {
+      operation: "plan_milestone",
+      error: "milestone_lease_conflict",
+      milestoneId,
+      byWorker,
+      expiresAt,
+    },
     isError: true,
   };
 }
@@ -1253,58 +1271,47 @@ export async function executePlanMilestone(
     isError: true,
       };
   }
-  const heldLease = getMilestoneLease(params.milestoneId);
-  if (heldLease?.status === "held" && Date.parse(heldLease.expires_at) > Date.now()) {
-    const holder = getAutoWorker(heldLease.worker_id);
-    if (holder?.status === "active") {
-      return {
-        content: [{ type: "text", text: `Milestone ${params.milestoneId} is currently leased by ${heldLease.worker_id}. Retry after ${heldLease.expires_at}.` }],
-        details: {
-          operation: "plan_milestone",
-          error: "milestone_lease_conflict",
-          milestoneId: params.milestoneId,
-          byWorker: heldLease.worker_id,
-          expiresAt: heldLease.expires_at,
-        },
-        isError: true,
-      };
-    }
-  }
-
-  const workerId = registerAutoWorker({ projectRootRealpath: normalizeRealPath(basePath) });
+  let workerId: string | null = null;
   let acquiredToken: number | null = null;
-  let insertedPlaceholder = false;
-  let planningSucceeded = false;
   let leaseRefreshTimer: ReturnType<typeof setInterval> | undefined;
   try {
-    insertedPlaceholder = insertMilestone({
-      id: params.milestoneId,
-      title: params.milestoneId,
-      status: "queued",
-    });
-
-    const lease = claimMilestoneLease(workerId, params.milestoneId);
-    if (!lease.ok) {
-      return {
-        content: [{ type: "text", text: `Milestone ${params.milestoneId} is currently leased by ${lease.byWorker}. Retry after ${lease.expiresAt}.` }],
-        details: {
-          operation: "plan_milestone",
-          error: "milestone_lease_conflict",
-          milestoneId: params.milestoneId,
-          byWorker: lease.byWorker,
-          expiresAt: lease.expiresAt,
-        },
-        isError: true,
-      };
-    }
-    acquiredToken = lease.token;
-
-    const leaseRefreshMs = (milestoneLeaseTtlSeconds() / 2) * 1000;
-    leaseRefreshTimer = setInterval(() => {
-      if (acquiredToken !== null) {
-        refreshMilestoneLease(workerId, params.milestoneId, acquiredToken);
+    // Re-read at the gate so a peer-created milestone is not treated as fresh.
+    const milestoneExists = getMilestone(params.milestoneId) !== null;
+    if (milestoneExists) {
+      const heldLease = getMilestoneLease(params.milestoneId);
+      if (heldLease?.status === "held" && Date.parse(heldLease.expires_at) > Date.now()) {
+        const holder = getAutoWorker(heldLease.worker_id);
+        // Let the one-shot claim path recover stale same-process worker rows.
+        const projectRoot = normalizeRealPath(basePath);
+        const isOurAutoLease = isAutoActive() && heldLease.worker_id === autoSession.workerId;
+        const holderIsOneShotReentrantPeer = !isAutoActive()
+          && !!holder
+          && holder.host === hostname()
+          && holder.pid === process.pid
+          && holder.project_root_realpath === projectRoot;
+        if (holder?.status === "active" && !isOurAutoLease && !holderIsOneShotReentrantPeer) {
+          return milestoneLeaseConflictResult(params.milestoneId, heldLease.worker_id, heldLease.expires_at);
+        }
       }
-    }, leaseRefreshMs);
+    }
+
+    // Fresh creation cannot claim a lease because the FK row does not exist.
+    // In-process auto already owns its lease; re-claiming would bump its token.
+    if (!isAutoActive() && milestoneExists) {
+      workerId = registerAutoWorker({ projectRootRealpath: normalizeRealPath(basePath) });
+      const lease = claimMilestoneLease(workerId, params.milestoneId);
+      if (!lease.ok) {
+        return milestoneLeaseConflictResult(params.milestoneId, lease.byWorker, lease.expiresAt);
+      }
+      acquiredToken = lease.token;
+
+      const leaseRefreshMs = (milestoneLeaseTtlSeconds() / 2) * 1000;
+      leaseRefreshTimer = setInterval(() => {
+        if (acquiredToken !== null && workerId !== null) {
+          refreshMilestoneLease(workerId, params.milestoneId, acquiredToken);
+        }
+      }, leaseRefreshMs);
+    }
 
     const result = await handlePlanMilestone(params, basePath);
     if ("error" in result) {
@@ -1314,7 +1321,6 @@ export async function executePlanMilestone(
       isError: true,
       };
     }
-    planningSucceeded = true;
     return {
       content: [{ type: "text", text: `Planned milestone ${result.milestoneId}` }],
       details: {
@@ -1336,15 +1342,11 @@ export async function executePlanMilestone(
     if (leaseRefreshTimer !== undefined) {
       clearInterval(leaseRefreshTimer);
     }
-    if (acquiredToken !== null) {
+    if (workerId !== null && acquiredToken !== null) {
       releaseMilestoneLease(workerId, params.milestoneId, acquiredToken);
     }
-    markWorkerStopping(workerId);
-    if (insertedPlaceholder && !planningSucceeded) {
-      const milestone = getMilestone(params.milestoneId);
-      if (milestone?.status === "queued" && milestone.title === params.milestoneId) {
-        deleteMilestone(params.milestoneId);
-      }
+    if (workerId !== null) {
+      markWorkerStopping(workerId);
     }
   }
 }
