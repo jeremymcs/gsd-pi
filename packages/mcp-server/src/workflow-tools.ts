@@ -1310,12 +1310,27 @@ const requiresItemSchema = z.preprocess(
   z.object({ slice: z.string(), provides: z.string() }),
 );
 
-const verificationEvidenceItemSchema = z.object({
-  command: z.string(),
-  exitCode: z.number(),
-  verdict: z.string(),
-  durationMs: z.number(),
-});
+// Accept either a string (legacy command-only form) or the structured object.
+// Mirrors `normalizeVerificationEvidence` in the executor: strings are coerced
+// into the canonical object shape before Zod validates, so the emitted JSON
+// Schema stays a single object type (no anyOf/oneOf) for Moonshot/Kimi.
+const verificationEvidenceItemSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    return {
+      command: value,
+      exitCode: -1,
+      verdict: "unknown (coerced from string)",
+      durationMs: 0,
+    };
+  },
+  z.object({
+    command: z.string(),
+    exitCode: z.number(),
+    verdict: z.string(),
+    durationMs: z.number(),
+  }),
+);
 
 const nonEmptyString = (field: string) =>
   z.string().trim().min(1, `${field} must be a non-empty string`);
@@ -1881,7 +1896,14 @@ const uatResultSaveParams = {
   checks: z.array(uatCheckSchema).min(1).describe("Structured check results"),
   presentation: uatPresentationSchema.describe("Tool-presentation evidence"),
   notes: z.string().optional().describe("Overall verdict rationale"),
-  attempt: z.string().optional().describe("Attempt number or auto"),
+  // Accept number (e.g. 1) or string (e.g. "1", "auto") and coerce to string
+  // before validation, so the emitted JSON Schema stays a single primitive type
+  // (no anyOf/oneOf) for Moonshot/Kimi. The executor still treats "auto" and
+  // numeric strings as previously.
+  attempt: z.preprocess(
+    (value) => (typeof value === "number" ? String(value) : value),
+    z.string().optional(),
+  ).describe("Attempt number or auto"),
   previousAttemptId: z.string().optional(),
 };
 const uatResultSaveSchema = z.object(uatResultSaveParams);
